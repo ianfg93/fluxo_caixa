@@ -1,10 +1,15 @@
-export type UserRole = "basic" | "manager" | "master"
+export type UserRole = "operational" | "administrator" | "master"
 
 export interface User {
   id: string
   name: string
   email: string
   role: UserRole
+  userLevel: number
+  companyId: string | null
+  companyName: string | null
+  permissions: Record<string, any>
+  settings: Record<string, any>
   createdAt: Date
 }
 
@@ -68,11 +73,24 @@ export class AuthService {
 
   static hasPermission(userRole: UserRole, requiredRole: UserRole): boolean {
     const roleHierarchy: Record<UserRole, number> = {
-      basic: 1,
-      manager: 2,
+      operational: 1,
+      administrator: 2, 
       master: 3,
     }
-
+    
     return roleHierarchy[userRole] >= roleHierarchy[requiredRole]
+  }
+
+  // Novos métodos helpers
+  static isMaster(user: User): boolean {
+    return user.role === 'master'
+  }
+
+  static canCreateCompanies(user: User): boolean {
+    return user.permissions?.can_create_companies === true
+  }
+
+  static canManageUsers(user: User): boolean {
+    return user.permissions?.can_create_users === true || this.isMaster(user)
   }
 }

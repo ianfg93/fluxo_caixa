@@ -74,21 +74,6 @@ export function LoginForm() {
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <p className="text-sm font-medium mb-2">Usuários de teste:</p>
-            <div className="text-xs space-y-1">
-              <p>
-                <strong>Master:</strong> joao@empresa.com
-              </p>
-              <p>
-                <strong>Manager:</strong> maria@empresa.com
-              </p>
-              <p>
-                <strong>Basic:</strong> pedro@empresa.com
-              </p>
-              <p className="text-muted-foreground">Senha para todos: 123456</p>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>
