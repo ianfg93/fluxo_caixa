@@ -8,42 +8,62 @@ import { useEffect, useState } from "react"
 
 export function AlertsPanel() {
   const [alerts, setAlerts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const overdueAccounts = AccountsPayableService.getOverdueAccounts()
-    const upcomingPayments = AccountsPayableService.getUpcomingPayments(7)
-    const urgentPayments = AccountsPayableService.getAccountsPayable().filter(
-      (a) => a.priority === "urgent" && a.status === "pending",
-    )
+    const loadAlerts = async () => {
+      try {
+        setLoading(true)
+        
+        // Aguardar todas as chamadas assíncronas
+        const [overdueAccounts, upcomingPayments, allAccounts] = await Promise.all([
+          AccountsPayableService.getOverdueAccounts(),
+          AccountsPayableService.getUpcomingPayments(7),
+          AccountsPayableService.getAccountsPayable()
+        ])
 
-    const alertsList = [
-      ...overdueAccounts.map((account) => ({
-        type: "overdue",
-        title: "Conta em Atraso",
-        description: `${account.supplierName} - ${account.description}`,
-        amount: account.amount,
-        date: account.dueDate,
-        priority: "high",
-      })),
-      ...upcomingPayments.map((account) => ({
-        type: "upcoming",
-        title: "Vencimento Próximo",
-        description: `${account.supplierName} - ${account.description}`,
-        amount: account.amount,
-        date: account.dueDate,
-        priority: "medium",
-      })),
-      ...urgentPayments.map((account) => ({
-        type: "urgent",
-        title: "Pagamento Urgente",
-        description: `${account.supplierName} - ${account.description}`,
-        amount: account.amount,
-        date: account.dueDate,
-        priority: "urgent",
-      })),
-    ].slice(0, 10) // Limit to 10 alerts
+        // Filtrar pagamentos urgentes após receber os dados
+        const urgentPayments = allAccounts.filter(
+          (a) => a.priority === "urgent" && a.status === "pending"
+        )
 
-    setAlerts(alertsList)
+        const alertsList = [
+          ...overdueAccounts.map((account) => ({
+            type: "overdue",
+            title: "Conta em Atraso",
+            description: `${account.supplierName} - ${account.description}`,
+            amount: account.amount,
+            date: account.dueDate,
+            priority: "high",
+          })),
+          ...upcomingPayments.map((account) => ({
+            type: "upcoming",
+            title: "Vencimento Próximo",
+            description: `${account.supplierName} - ${account.description}`,
+            amount: account.amount,
+            date: account.dueDate,
+            priority: "medium",
+          })),
+          ...urgentPayments.map((account) => ({
+            type: "urgent",
+            title: "Pagamento Urgente",
+            description: `${account.supplierName} - ${account.description}`,
+            amount: account.amount,
+            date: account.dueDate,
+            priority: "urgent",
+          })),
+        ].slice(0, 10) // Limit to 10 alerts
+
+        setAlerts(alertsList)
+      } catch (error) {
+        console.error('Erro ao carregar alertas:', error)
+        setAlerts([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadAlerts()
   }, [])
 
   const formatCurrency = (amount: number) => {
@@ -81,6 +101,20 @@ export function AlertsPanel() {
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Alertas e Notificações</CardTitle>
+          <CardDescription>Contas que requerem atenção imediata</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-center py-8">Carregando alertas...</p>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

@@ -32,27 +32,48 @@ export interface AccountPayable {
 
 export class AccountsPayableService {
   static async getAccountsPayable(status?: PaymentStatus): Promise<AccountPayable[]> {
-    try {
-      const url = status ? `/api/accounts-payable?status=${status}` : "/api/accounts-payable"
-      const response = await fetch(url)
+  console.log('🔍 getAccountsPayable chamado com status:', status)
+  
+  try {
+    const url = status ? `/api/accounts-payable?status=${status}` : "/api/accounts-payable"
+    console.log('🔍 Fazendo fetch para:', url)
+    
+    const response = await fetch(url)
+    console.log('🔍 Response status:', response.status)
+    console.log('🔍 Response ok:', response.ok)
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch accounts payable")
-      }
-
-      const data = await response.json()
-      return data.accounts.map((account: any) => ({
-        ...account,
-        dueDate: new Date(account.dueDate),
-        issueDate: new Date(account.issueDate),
-        paidDate: account.paidDate ? new Date(account.paidDate) : undefined,
-        createdAt: new Date(account.createdAt),
-      }))
-    } catch (error) {
-      console.error("Get accounts payable error:", error)
+    if (!response.ok) {
+      console.error(`API Error: ${response.status} - ${response.statusText}`)
       return []
     }
+
+    const data = await response.json()
+    console.log('🔍 Data recebida:', data)
+    console.log('🔍 data.accounts tipo:', typeof data.accounts)
+    console.log('🔍 data.accounts é array:', Array.isArray(data.accounts))
+    
+    if (!data || !data.accounts || !Array.isArray(data.accounts)) {
+      console.error('❌ API retornou dados inválidos:', data)
+      return []
+    }
+
+    const result = data.accounts.map((account: any) => ({
+      ...account,
+      dueDate: new Date(account.dueDate),
+      issueDate: new Date(account.issueDate),
+      paidDate: account.paidDate ? new Date(account.paidDate) : undefined,
+      createdAt: new Date(account.createdAt),
+    }))
+    
+    console.log('🔍 Resultado final:', result)
+    console.log('🔍 Resultado é array:', Array.isArray(result))
+    
+    return result
+  } catch (error) {
+    console.error("❌ Get accounts payable error:", error)
+    return []
   }
+}
 
   static async getSuppliers(): Promise<Supplier[]> {
     try {

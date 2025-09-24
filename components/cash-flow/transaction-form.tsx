@@ -146,9 +146,10 @@ export function TransactionForm({ type, onSuccess, onCancel }: TransactionFormPr
           <div className="space-y-2">
             <Label>Anexos (opcional)</Label>
             <FileUploader
-              onFilesUploaded={setUploadedFiles}
-              maxFiles={5}
-              acceptedTypes={["image/*", "application/pdf", ".doc", ".docx"]}
+              onFileUploaded={(file) =>
+                setUploadedFiles((prev) => [...prev, file.url])
+              }
+              acceptedTypes="image/*,application/pdf,.doc,.docx"
             />
           </div>
 

@@ -21,8 +21,9 @@ interface AccountFormProps {
 export function AccountForm({ onSuccess, onCancel }: AccountFormProps) {
   const { authState } = useAuth()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true)
   const [formData, setFormData] = useState({
-    supplierId: "",
+    supplierName: "",
     description: "",
     amount: "",
     dueDate: "",
@@ -34,19 +35,33 @@ export function AccountForm({ onSuccess, onCancel }: AccountFormProps) {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const suppliersData = AccountsPayableService.getSuppliers()
-    setSuppliers(suppliersData)
+    const loadSuppliers = async () => {
+      try {
+        setLoadingSuppliers(true)
+        const suppliersData = await AccountsPayableService.getSuppliers()
+        setSuppliers(suppliersData)
+      } catch (error) {
+        console.error("Erro ao carregar fornecedores:", error)
+        setSuppliers([])
+      } finally {
+        setLoadingSuppliers(false)
+      }
+    }
+
+    loadSuppliers()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     try {
-      AccountsPayableService.addAccountPayable({
-        supplierId: formData.supplierId,
+      const result = await AccountsPayableService.addAccountPayable({
+        supplierId: formData.supplierName, // Usando supplier_name temporariamente
         description: formData.description,
         amount: Number.parseFloat(formData.amount),
         dueDate: new Date(formData.dueDate),
@@ -56,13 +71,17 @@ export function AccountForm({ onSuccess, onCancel }: AccountFormProps) {
         category: formData.category,
         invoiceNumber: formData.invoiceNumber || undefined,
         notes: formData.notes || undefined,
-        createdBy: authState.user?.name || "Unknown",
-        attachments: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+        createdBy: authState.user?.id || "unknown",
       })
 
-      onSuccess()
+      if (result) {
+        onSuccess()
+      } else {
+        setError("Erro ao salvar conta. Tente novamente.")
+      }
     } catch (error) {
       console.error("Error adding account payable:", error)
+      setError("Erro ao salvar conta. Verifique os dados e tente novamente.")
     } finally {
       setIsLoading(false)
     }
@@ -76,25 +95,42 @@ export function AccountForm({ onSuccess, onCancel }: AccountFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
+              {error}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="supplier">Fornecedor</Label>
-              <Select
-                value={formData.supplierId}
-                onValueChange={(value) => setFormData({ ...formData, supplierId: value })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um fornecedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {loadingSuppliers ? (
+                <Input value="Carregando fornecedores..." disabled />
+              ) : suppliers.length > 0 ? (
+                <Select
+                  value={formData.supplierName}
+                  onValueChange={(value) => setFormData({ ...formData, supplierName: value })}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um fornecedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.name}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={formData.supplierName}
+                  onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
+                  placeholder="Digite o nome do fornecedor"
+                  required
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="amount">Valor (R$)</Label>
@@ -205,10 +241,10 @@ export function AccountForm({ onSuccess, onCancel }: AccountFormProps) {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button type="submit" disabled={isLoading} className="flex-1">
+            <Button type="submit" disabled={isLoading || loadingSuppliers} className="flex-1">
               {isLoading ? "Salvando..." : "Salvar Conta"}
             </Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
               Cancelar
             </Button>
           </div>

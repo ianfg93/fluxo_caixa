@@ -18,8 +18,8 @@ export function TransactionList({ type }: TransactionListProps) {
   const [showForm, setShowForm] = useState(false)
   const { hasPermission } = useAuth()
 
-  const loadTransactions = () => {
-    const data = CashFlowService.getTransactions(type)
+  const loadTransactions = async () => {
+    const data = await CashFlowService.getTransactions(type)
     setTransactions(data)
   }
 

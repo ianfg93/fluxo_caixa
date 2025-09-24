@@ -7,20 +7,16 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
 
     let sql = `
-      SELECT ap.*, s.name as supplier_name 
-      FROM accounts_payable ap 
-      LEFT JOIN suppliers s ON ap.supplier_id = s.id 
-      ORDER BY ap.due_date ASC, ap.created_at DESC
+      SELECT * FROM accounts_payable 
+      ORDER BY due_date ASC, created_at DESC
     `
     let params: any[] = []
 
     if (status) {
       sql = `
-        SELECT ap.*, s.name as supplier_name 
-        FROM accounts_payable ap 
-        LEFT JOIN suppliers s ON ap.supplier_id = s.id 
-        WHERE ap.status = $1 
-        ORDER BY ap.due_date ASC, ap.created_at DESC
+        SELECT * FROM accounts_payable 
+        WHERE status = $1 
+        ORDER BY due_date ASC, created_at DESC
       `
       params = [status]
     }
@@ -29,8 +25,8 @@ export async function GET(request: NextRequest) {
 
     const accounts = result.rows.map((row) => ({
       id: row.id,
-      supplierId: row.supplier_id,
-      supplierName: row.supplier_name || "Fornecedor não encontrado",
+      supplierId: row.id, // Usar o próprio ID temporariamente
+      supplierName: row.supplier_name,
       description: row.description,
       amount: Number.parseFloat(row.amount),
       dueDate: row.due_date,
@@ -40,7 +36,7 @@ export async function GET(request: NextRequest) {
       category: row.category,
       invoiceNumber: row.invoice_number,
       notes: row.notes,
-      paidDate: row.paid_date,
+      paidDate: row.payment_date, // Note: campo é 'payment_date' no banco
       paidAmount: row.paid_amount ? Number.parseFloat(row.paid_amount) : undefined,
       createdBy: row.created_by,
       createdAt: row.created_at,
