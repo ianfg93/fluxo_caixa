@@ -9,6 +9,7 @@ import { CashFlowService, type CashFlowTransaction, type TransactionType } from 
 import { TransactionForm } from "./transaction-form"
 import { EntryForm } from "./entry-form"
 import { EditTransactionForm } from "./edit-transaction-form"
+import { DateFilter, type DateFilter as DateFilterType } from "./date-filter"
 import { useAuth } from "@/hooks/use-auth"
 
 interface TransactionListProps {
@@ -17,9 +18,11 @@ interface TransactionListProps {
 
 export function TransactionList({ type }: TransactionListProps) {
   const [transactions, setTransactions] = useState<CashFlowTransaction[]>([])
+  const [filteredTransactions, setFilteredTransactions] = useState<CashFlowTransaction[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<CashFlowTransaction | null>(null)
   const [loading, setLoading] = useState(true)
+  const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "today" })
   const { hasPermission, authState } = useAuth()
 
   const loadTransactions = async () => {
@@ -34,6 +37,27 @@ export function TransactionList({ type }: TransactionListProps) {
     }
   }
 
+  // Filtrar transações quando os dados ou filtro mudam
+  useEffect(() => {
+    let filtered = transactions
+
+    if (dateFilter.startDate && dateFilter.endDate) {
+      const startDate = new Date(dateFilter.startDate)
+      const endDate = new Date(dateFilter.endDate)
+      
+      // Ajustar para incluir o dia inteiro
+      startDate.setHours(0, 0, 0, 0)
+      endDate.setHours(23, 59, 59, 999)
+
+      filtered = transactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date)
+        return transactionDate >= startDate && transactionDate <= endDate
+      })
+    }
+
+    setFilteredTransactions(filtered)
+  }, [transactions, dateFilter])
+
   useEffect(() => {
     loadTransactions()
   }, [type])
@@ -45,7 +69,6 @@ export function TransactionList({ type }: TransactionListProps) {
   }
 
   const handleDelete = async (transaction: CashFlowTransaction) => {
-    // Verificar permissão
     if (!hasPermission("manager")) {
       alert("Você não tem permissão para excluir transações.")
       return
@@ -71,7 +94,6 @@ export function TransactionList({ type }: TransactionListProps) {
   }
 
   const handleEdit = (transaction: CashFlowTransaction) => {
-    // Verificar permissão
     if (!hasPermission("manager")) {
       alert("Você não tem permissão para editar transações.")
       return
@@ -106,9 +128,14 @@ export function TransactionList({ type }: TransactionListProps) {
     return colors[category] || "bg-gray-100 text-gray-800"
   }
 
-  // Debug: verificar se o usuário está logado
-  console.log('AuthState:', authState)
-  console.log('Tem permissão para manager:', hasPermission("manager"))
+  // Calcular totais do período filtrado
+  const getTotalAmount = () => {
+    return filteredTransactions.reduce((total, transaction) => total + transaction.amount, 0)
+  }
+
+  const getTransactionCount = () => {
+    return filteredTransactions.length
+  }
 
   // Mostrar formulário de edição
   if (editingTransaction) {
@@ -152,6 +179,36 @@ export function TransactionList({ type }: TransactionListProps) {
         </Button>
       </div>
 
+      {/* Filtros de Data e Resumo lado a lado */}
+      <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
+        {/* Filtro de Data - ocupa mais espaço */}
+        <div className="flex-1 lg:flex-[2]">
+          <DateFilter 
+            onFilterChange={setDateFilter}
+            currentFilter={dateFilter}
+          />
+        </div>
+
+        {/* Resumo do período - ocupa menos espaço */}
+        {getTransactionCount() > 0 && (
+          <div className="lg:flex-[1]">
+            <Card className="min-h-[140px]">
+              <CardContent className="p-4 h-full flex flex-col justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-1">
+                    <span className="font-medium">{getTransactionCount()}</span> {type === "entry" ? "entrada(s)" : "saída(s)"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-2">Total do período</p>
+                  <p className={`text-2xl font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
+                    {type === "entry" ? "+" : "-"} {formatCurrency(getTotalAmount())}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <Card>
           <CardContent className="flex items-center justify-center py-12">
@@ -160,22 +217,25 @@ export function TransactionList({ type }: TransactionListProps) {
         </Card>
       ) : (
         <div className="grid gap-4">
-          {transactions.length === 0 ? (
+          {filteredTransactions.length === 0 ? (
             <Card>
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <p className="text-muted-foreground mb-4">
-                    Nenhuma {type === "entry" ? "entrada" : "saída"} encontrada
+                    {transactions.length === 0 
+                      ? `Nenhuma ${type === "entry" ? "entrada" : "saída"} encontrada`
+                      : `Nenhuma ${type === "entry" ? "entrada" : "saída"} encontrada no período selecionado`
+                    }
                   </p>
                   <Button onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Adicionar primeira {type === "entry" ? "venda" : "saída"}
+                    Adicionar {type === "entry" ? "venda" : "saída"}
                   </Button>
                 </div>
               </CardContent>
             </Card>
           ) : (
-            transactions.map((transaction) => (
+            filteredTransactions.map((transaction) => (
               <Card key={transaction.id}>
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
