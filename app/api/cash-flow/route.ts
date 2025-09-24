@@ -6,11 +6,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
 
-    let sql = "SELECT * FROM cash_flow_transactions ORDER BY date DESC, created_at DESC"
+    let sql = `
+      SELECT 
+        cft.*,
+        u.name as created_by_name
+      FROM cash_flow_transactions cft
+      LEFT JOIN users u ON cft.created_by = u.id
+      ORDER BY cft.date DESC, cft.created_at DESC
+    `
     let params: any[] = []
 
     if (type) {
-      sql = "SELECT * FROM cash_flow_transactions WHERE type = $1 ORDER BY date DESC, created_at DESC"
+      sql = `
+        SELECT 
+          cft.*,
+          u.name as created_by_name
+        FROM cash_flow_transactions cft
+        LEFT JOIN users u ON cft.created_by = u.id
+        WHERE cft.type = $1 
+        ORDER BY cft.date DESC, cft.created_at DESC
+      `
       params = [type]
     }
 
@@ -23,7 +38,7 @@ export async function GET(request: NextRequest) {
       amount: Number.parseFloat(row.amount),
       category: row.category,
       date: row.date,
-      createdBy: row.created_by,
+      createdBy: row.created_by_name || 'Usuário não encontrado', // Usar o nome do JOIN
       createdAt: row.created_at,
       attachments: row.attachments ? JSON.parse(row.attachments) : undefined,
       notes: row.notes,

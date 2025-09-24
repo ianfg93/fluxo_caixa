@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, TrendingUp, TrendingDown } from "lucide-react"
 import { CashFlowService, type CashFlowTransaction, type TransactionType } from "@/lib/cash-flow"
 import { TransactionForm } from "./transaction-form"
+import { EntryForm } from "./entry-form"
 import { useAuth } from "@/hooks/use-auth"
 
 interface TransactionListProps {
@@ -16,11 +17,19 @@ interface TransactionListProps {
 export function TransactionList({ type }: TransactionListProps) {
   const [transactions, setTransactions] = useState<CashFlowTransaction[]>([])
   const [showForm, setShowForm] = useState(false)
-  const { hasPermission } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const { hasPermission, authState } = useAuth()
 
   const loadTransactions = async () => {
-    const data = await CashFlowService.getTransactions(type)
-    setTransactions(data)
+    try {
+      setLoading(true)
+      const data = await CashFlowService.getTransactions(type)
+      setTransactions(data)
+    } catch (error) {
+      console.error("Erro ao carregar transações:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -32,10 +41,19 @@ export function TransactionList({ type }: TransactionListProps) {
     setShowForm(false)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir esta transação?")) {
-      CashFlowService.deleteTransaction(id)
-      loadTransactions()
+      try {
+        const success = await CashFlowService.deleteTransaction(id)
+        if (success) {
+          loadTransactions()
+        } else {
+          alert("Erro ao excluir transação. Tente novamente.")
+        }
+      } catch (error) {
+        console.error("Erro ao excluir:", error)
+        alert("Erro ao excluir transação. Tente novamente.")
+      }
     }
   }
 
@@ -66,8 +84,16 @@ export function TransactionList({ type }: TransactionListProps) {
     return colors[category] || "bg-gray-100 text-gray-800"
   }
 
+  // Debug: verificar se o usuário está logado
+  console.log('AuthState:', authState)
+
   if (showForm) {
-    return <TransactionForm type={type} onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
+    // Use formulário simples para entradas, completo para saídas
+    if (type === "entry") {
+      return <EntryForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
+    } else {
+      return <TransactionForm type={type} onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
+    }
   }
 
   return (
@@ -88,66 +114,74 @@ export function TransactionList({ type }: TransactionListProps) {
         </div>
         <Button onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nova {type === "entry" ? "Entrada" : "Saída"}
+          Nova {type === "entry" ? "Venda" : "Saída"}
         </Button>
       </div>
 
-      <div className="grid gap-4">
-        {transactions.length === 0 ? (
-          <Card>
-            <CardContent className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <p className="text-muted-foreground mb-4">
-                  Nenhuma {type === "entry" ? "entrada" : "saída"} encontrada
-                </p>
-                <Button onClick={() => setShowForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar primeira {type === "entry" ? "entrada" : "saída"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          transactions.map((transaction) => (
-            <Card key={transaction.id}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold">{transaction.description}</h3>
-                      <Badge className={getCategoryColor(transaction.category)}>
-                        {transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>Data: {formatDate(transaction.date)}</span>
-                      <span>Por: {transaction.createdBy}</span>
-                    </div>
-                    {transaction.notes && <p className="text-sm text-muted-foreground mt-2">{transaction.notes}</p>}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className={`text-lg font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
-                        {type === "entry" ? "+" : "-"} {formatCurrency(transaction.amount)}
-                      </p>
-                    </div>
-                    {hasPermission("manager") && (
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleDelete(transaction.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+      {loading ? (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <p className="text-muted-foreground">Carregando transações...</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {transactions.length === 0 ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <p className="text-muted-foreground mb-4">
+                    Nenhuma {type === "entry" ? "entrada" : "saída"} encontrada
+                  </p>
+                  <Button onClick={() => setShowForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar primeira {type === "entry" ? "venda" : "saída"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ) : (
+            transactions.map((transaction) => (
+              <Card key={transaction.id}>
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold">{transaction.description}</h3>
+                        <Badge className={getCategoryColor(transaction.category)}>
+                          {transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>Data: {formatDate(transaction.date)}</span>
+                        <span>Por: {transaction.createdBy}</span>
+                      </div>
+                      {transaction.notes && <p className="text-sm text-muted-foreground mt-2">{transaction.notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className={`text-lg font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
+                          {type === "entry" ? "+" : "-"} {formatCurrency(transaction.amount)}
+                        </p>
+                      </div>
+                      {hasPermission("manager") && (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDelete(transaction.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }

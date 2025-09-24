@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CashFlowService, type TransactionType, type TransactionCategory } from "@/lib/cash-flow"
 import { useAuth } from "@/hooks/use-auth"
-import { FileUploader } from "@/components/file-upload/file-uploader"
 
 interface TransactionFormProps {
   type: TransactionType
@@ -29,41 +28,37 @@ export function TransactionForm({ type, onSuccess, onCancel }: TransactionFormPr
     notes: "",
   })
   const [isLoading, setIsLoading] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   const categoryOptions = CashFlowService.getCategoryOptions(type)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     try {
-      CashFlowService.addTransaction({
+      const result = await CashFlowService.addTransaction({
         type,
         description: formData.description,
         amount: Number.parseFloat(formData.amount),
         category: formData.category,
         date: new Date(formData.date),
-        createdBy: authState.user?.name || "Unknown",
+        createdBy: authState.user?.id || "unknown",
         notes: formData.notes || undefined,
-        attachments: uploadedFiles.length > 0 ? uploadedFiles : undefined,
       })
 
-      onSuccess()
+      if (result) {
+        onSuccess()
+      } else {
+        setError("Erro ao salvar a transação. Tente novamente.")
+      }
     } catch (error) {
       console.error("Error adding transaction:", error)
+      setError("Erro ao salvar a transação. Verifique os dados e tente novamente.")
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const formatCurrency = (value: string) => {
-    const numericValue = value.replace(/\D/g, "")
-    const formattedValue = (Number.parseInt(numericValue) / 100).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-    return formattedValue
   }
 
   return (
@@ -74,6 +69,12 @@ export function TransactionForm({ type, onSuccess, onCancel }: TransactionFormPr
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
+              {error}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="description">Descrição</Label>
@@ -132,32 +133,24 @@ export function TransactionForm({ type, onSuccess, onCancel }: TransactionFormPr
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Observações (opcional)</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Informações adicionais sobre a transação"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Anexos (opcional)</Label>
-            <FileUploader
-              onFileUploaded={(file) =>
-                setUploadedFiles((prev) => [...prev, file.url])
-              }
-              acceptedTypes="image/*,application/pdf,.doc,.docx"
-            />
-          </div>
+          {type === "exit" && (
+            <div className="space-y-2">
+              <Label htmlFor="notes">Observações (opcional)</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Informações adicionais sobre a transação"
+                rows={3}
+              />
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? "Salvando..." : "Salvar Transação"}
             </Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
               Cancelar
             </Button>
           </div>
