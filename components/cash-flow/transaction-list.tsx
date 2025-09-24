@@ -8,6 +8,7 @@ import { Plus, Edit, Trash2, TrendingUp, TrendingDown } from "lucide-react"
 import { CashFlowService, type CashFlowTransaction, type TransactionType } from "@/lib/cash-flow"
 import { TransactionForm } from "./transaction-form"
 import { EntryForm } from "./entry-form"
+import { EditTransactionForm } from "./edit-transaction-form"
 import { useAuth } from "@/hooks/use-auth"
 
 interface TransactionListProps {
@@ -17,6 +18,7 @@ interface TransactionListProps {
 export function TransactionList({ type }: TransactionListProps) {
   const [transactions, setTransactions] = useState<CashFlowTransaction[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState<CashFlowTransaction | null>(null)
   const [loading, setLoading] = useState(true)
   const { hasPermission, authState } = useAuth()
 
@@ -39,12 +41,23 @@ export function TransactionList({ type }: TransactionListProps) {
   const handleSuccess = () => {
     loadTransactions()
     setShowForm(false)
+    setEditingTransaction(null)
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir esta transação?")) {
+  const handleDelete = async (transaction: CashFlowTransaction) => {
+    // Verificar permissão
+    if (!hasPermission("manager")) {
+      alert("Você não tem permissão para excluir transações.")
+      return
+    }
+
+    const confirmMessage = `Tem certeza que deseja excluir esta ${type === "entry" ? "entrada" : "saída"}?\n\n` +
+      `Descrição: ${transaction.description}\n` +
+      `Valor: R$ ${transaction.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+
+    if (confirm(confirmMessage)) {
       try {
-        const success = await CashFlowService.deleteTransaction(id)
+        const success = await CashFlowService.deleteTransaction(transaction.id)
         if (success) {
           loadTransactions()
         } else {
@@ -55,6 +68,15 @@ export function TransactionList({ type }: TransactionListProps) {
         alert("Erro ao excluir transação. Tente novamente.")
       }
     }
+  }
+
+  const handleEdit = (transaction: CashFlowTransaction) => {
+    // Verificar permissão
+    if (!hasPermission("manager")) {
+      alert("Você não tem permissão para editar transações.")
+      return
+    }
+    setEditingTransaction(transaction)
   }
 
   const formatCurrency = (amount: number) => {
@@ -86,9 +108,21 @@ export function TransactionList({ type }: TransactionListProps) {
 
   // Debug: verificar se o usuário está logado
   console.log('AuthState:', authState)
+  console.log('Tem permissão para manager:', hasPermission("manager"))
 
+  // Mostrar formulário de edição
+  if (editingTransaction) {
+    return (
+      <EditTransactionForm 
+        transaction={editingTransaction}
+        onSuccess={handleSuccess}
+        onCancel={() => setEditingTransaction(null)}
+      />
+    )
+  }
+
+  // Mostrar formulário de nova transação
   if (showForm) {
-    // Use formulário simples para entradas, completo para saídas
     if (type === "entry") {
       return <EntryForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
     } else {
@@ -166,10 +200,21 @@ export function TransactionList({ type }: TransactionListProps) {
                       </div>
                       {hasPermission("manager") && (
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleEdit(transaction)}
+                            title="Editar transação"
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleDelete(transaction.id)}>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleDelete(transaction)}
+                            title="Excluir transação"
+                            className="hover:bg-red-50 hover:text-red-600"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
