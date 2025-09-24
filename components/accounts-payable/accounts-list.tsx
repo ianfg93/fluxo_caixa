@@ -13,21 +13,30 @@ import { useAuth } from "@/hooks/use-auth"
 
 export function AccountsList() {
   const [accounts, setAccounts] = useState<AccountPayable[]>([])
+  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<AccountPayable | null>(null)
   const [activeTab, setActiveTab] = useState<PaymentStatus | "all">("all")
   const { hasPermission } = useAuth()
 
-  const loadAccounts = () => {
-    const data = AccountsPayableService.getAccountsPayable()
-    // Update overdue status
-    const updatedData = data.map((account) => {
-      if (account.status === "pending" && new Date(account.dueDate) < new Date()) {
-        return { ...account, status: "overdue" as PaymentStatus }
-      }
-      return account
-    })
-    setAccounts(updatedData)
+  const loadAccounts = async () => {
+    try {
+      setLoading(true)
+      const data = await AccountsPayableService.getAccountsPayable()
+      // Update overdue status
+      const updatedData = data.map((account) => {
+        if (account.status === "pending" && new Date(account.dueDate) < new Date()) {
+          return { ...account, status: "overdue" as PaymentStatus }
+        }
+        return account
+      })
+      setAccounts(updatedData)
+    } catch (error) {
+      console.error("Erro ao carregar contas:", error)
+      setAccounts([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -145,7 +154,13 @@ export function AccountsList() {
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4">
-          {filteredAccounts.length === 0 ? (
+          {loading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <p className="text-muted-foreground">Carregando contas...</p>
+              </CardContent>
+            </Card>
+          ) : filteredAccounts.length === 0 ? (
             <Card>
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center">

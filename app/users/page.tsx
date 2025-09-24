@@ -15,6 +15,7 @@ import { UserManagementService, type User } from "@/lib/user-management"
 import { UserForm } from "@/components/user-management/user-form"
 import { UsersList } from "@/components/user-management/users-list"
 import { useAuth } from "@/hooks/use-auth"
+import { AuthenticatedLayout } from "@/components/layout/authenticated-layout"
 
 export default function UsersPage() {
   const { hasPermission } = useAuth()
@@ -28,9 +29,13 @@ export default function UsersPage() {
     loadUsers()
   }, [])
 
-  const loadUsers = () => {
-    const allUsers = UserManagementService.getUsers()
-    setUsers(allUsers)
+  const loadUsers = async () => {
+    try {
+      const allUsers = await UserManagementService.getUsers()
+      setUsers(allUsers)
+    } catch (error) {
+      console.error("Erro ao carregar usuários:", error)
+    }
   }
 
   const handleAdd = () => {
@@ -48,12 +53,17 @@ export default function UsersPage() {
     setShowDeleteDialog(true)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (userToDelete) {
-      UserManagementService.deleteUser(userToDelete.id)
-      loadUsers()
-      setShowDeleteDialog(false)
-      setUserToDelete(null)
+      try {
+        await UserManagementService.deleteUser(userToDelete.id)
+        loadUsers()
+        setShowDeleteDialog(false)
+        setUserToDelete(null)
+      } catch (error) {
+        console.error("Erro ao excluir usuário:", error)
+        alert("Erro ao excluir usuário. Tente novamente.")
+      }
     }
   }
 
@@ -70,7 +80,7 @@ export default function UsersPage() {
 
   if (!hasPermission("master")) {
     return (
-      <div className="p-6">
+      <AuthenticatedLayout>
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
@@ -78,43 +88,55 @@ export default function UsersPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </AuthenticatedLayout>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
-        <p className="text-muted-foreground">Gerencie usuários e suas permissões no sistema</p>
+    <AuthenticatedLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
+          <p className="text-muted-foreground">Gerencie usuários e suas permissões no sistema</p>
+        </div>
+        
+        <UsersList 
+          users={users} 
+          onAdd={handleAdd} 
+          onEdit={handleEdit} 
+          onDelete={handleDelete} 
+          onRefresh={loadUsers} 
+        />
+        
+        <Dialog open={showForm} onOpenChange={setShowForm}>
+          <DialogContent className="max-w-4xl">
+            <UserForm 
+              user={selectedUser ?? undefined} 
+              onSuccess={handleFormSuccess} 
+              onCancel={handleFormCancel} 
+            />
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Exclusão</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja excluir o usuário "{userToDelete?.name}"? Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={confirmDelete}>
+                Excluir
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      <UsersList users={users} onAdd={handleAdd} onEdit={handleEdit} onDelete={handleDelete} onRefresh={loadUsers} />
-
-      <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-4xl">
-          <UserForm user={selectedUser} onSuccess={handleFormSuccess} onCancel={handleFormCancel} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir o usuário "{userToDelete?.name}"? Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Excluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </AuthenticatedLayout>
   )
 }

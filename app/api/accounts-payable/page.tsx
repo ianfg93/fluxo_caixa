@@ -73,6 +73,7 @@ export default function AccountsPayablePage() {
 
     if (confirm(confirmMessage)) {
       try {
+        // Implementar método de exclusão se necessário
         console.log("Excluir conta:", account.id)
         loadAccounts()
       } catch (error) {
@@ -133,6 +134,7 @@ export default function AccountsPayablePage() {
     return texts[priority] || priority
   }
 
+  // Calcular totais do período filtrado
   const getTotalAmount = () => {
     return filteredAccounts.reduce((total, account) => total + account.amount, 0)
   }
