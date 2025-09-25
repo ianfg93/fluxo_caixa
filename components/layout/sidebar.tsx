@@ -10,12 +10,12 @@ import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["basic", "manager", "master"] },
-  { name: "Entradas", href: "/cash-flow/entries", icon: TrendingUp, roles: ["basic", "manager", "master"] },
-  { name: "Saídas", href: "/cash-flow/exits", icon: TrendingDown, roles: ["basic", "manager", "master"] },
-  { name: "Contas a Pagar", href: "/accounts-payable", icon: CreditCard, roles: ["manager", "master"] },
-  { name: "Usuários", href: "/users", icon: Users, roles: ["master"] },
-  { name: "Configurações", href: "/settings", icon: Settings, roles: ["manager", "master"] },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["master", "administrator"] },
+  { name: "Entradas", href: "/cash-flow/entries", icon: TrendingUp, roles: ["administrator", "operational"] },
+  { name: "Saídas", href: "/cash-flow/exits", icon: TrendingDown, roles: ["administrator", "operational"] },
+  { name: "Contas a Pagar", href: "/accounts-payable", icon: CreditCard, roles: ["administrator"] },
+  { name: "Usuários", href: "/users", icon: Users, roles: ["master", "administrator"] },
+  { name: "Configurações", href: "/settings", icon: Settings, roles: ["master", "administrator", "operational"] },
 ]
 
 export function Sidebar() {

@@ -10,8 +10,12 @@ export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (authState.isAuthenticated) {
+    if (authState.isAuthenticated && authState.user?.role !== "operational") {
       router.push("/dashboard")
+    }
+    else if (authState.isAuthenticated && authState.user?.role === "operational")
+    {
+      router.push("/cash-flow/entries")
     }
   }, [authState.isAuthenticated, router])
 
