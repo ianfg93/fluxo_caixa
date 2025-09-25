@@ -1,17 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
+import jwt from 'jsonwebtoken'
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
-
+    
     if (!email || !password) {
       return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 })
     }
 
-    // Buscar usuário com dados da empresa e tipo
+    // Sua query existente...
     const result = await query(`
-      SELECT 
+      SELECT
         u.id,
         u.email,
         u.name,
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
       FROM users u
       INNER JOIN user_types ut ON u.user_type_id = ut.id
       LEFT JOIN companies c ON u.company_id = c.id
-      WHERE u.email = $1 
+      WHERE u.email = $1
       AND u.password_hash = crypt($2, u.password_hash)
     `, [email, password])
 
@@ -39,31 +40,39 @@ export async function POST(request: NextRequest) {
 
     const userData = result.rows[0]
 
-    // Verificar se usuário está ativo
+    // Suas validações existentes...
     if (!userData.active) {
-      return NextResponse.json({ 
-        error: "Usuário desativado. Entre em contato com o administrador." 
+      return NextResponse.json({
+        error: "Usuário desativado. Entre em contato com o administrador."
       }, { status: 401 })
     }
 
-    // Verificar se empresa está ativa (exceto para master)
     if (userData.user_type !== 'master' && !userData.company_active) {
-      return NextResponse.json({ 
-        error: "Empresa desativada. Entre em contato com o suporte." 
+      return NextResponse.json({
+        error: "Empresa desativada. Entre em contato com o suporte."
       }, { status: 401 })
     }
 
-    // Verificar se assinatura está válida (se aplicável)
     if (userData.subscription_expires_at && new Date(userData.subscription_expires_at) < new Date()) {
-      return NextResponse.json({ 
-        error: "Assinatura expirada. Entre em contato com o suporte." 
+      return NextResponse.json({
+        error: "Assinatura expirada. Entre em contato com o suporte."
       }, { status: 401 })
     }
 
-    // Atualizar último login
     await query('UPDATE users SET last_login = NOW() WHERE id = $1', [userData.id])
 
-    // Preparar dados do usuário para retorno
+    // NOVO: Gerar JWT Token
+    const token = jwt.sign(
+      {
+        userId: userData.id,
+        email: userData.email,
+        role: userData.user_type,
+        companyId: userData.company_id
+      },
+      process.env.JWT_SECRET || 'seu_jwt_secret_aqui',
+      { expiresIn: '7d' }
+    )
+
     const user = {
       id: userData.id,
       name: userData.name,
@@ -77,7 +86,8 @@ export async function POST(request: NextRequest) {
       createdAt: userData.created_at,
     }
 
-    return NextResponse.json({ user })
+    // NOVO: Retornar token e user separadamente
+    return NextResponse.json({ user, token })
 
   } catch (error) {
     console.error("Login API error:", error)

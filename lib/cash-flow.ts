@@ -1,3 +1,4 @@
+import { ApiClient } from './api-client'
 export type TransactionType = "entry" | "exit"
 export type TransactionCategory =
   | "vendas"
@@ -25,10 +26,24 @@ export interface CashFlowTransaction {
 }
 
 export class CashFlowService {
-  static async getTransactions(type?: TransactionType): Promise<CashFlowTransaction[]> {
+  static async getTransactions(type?: TransactionType, companyId?: string): Promise<CashFlowTransaction[]> {
     try {
-      const url = type ? `/api/cash-flow?type=${type}` : "/api/cash-flow"
-      const response = await fetch(url)
+      let url = "/api/cash-flow"
+      const params = new URLSearchParams()
+      
+      if (type) {
+        params.append("type", type)
+      }
+      
+      if (companyId) {
+        params.append("company", companyId)
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`
+      }
+
+      const response = await ApiClient.get(url)
 
       if (!response.ok) {
         throw new Error("Failed to fetch transactions")
@@ -116,9 +131,15 @@ export class CashFlowService {
     }
   }
 
-  static async getBalance(): Promise<{ total: number; entries: number; exits: number }> {
+  static async getBalance(companyId?: string): Promise<{ total: number; entries: number; exits: number }> {
     try {
-      const response = await fetch("/api/cash-flow/balance")
+      let url = "/api/cash-flow/balance"
+      
+      if (companyId) {
+        url += `?company=${companyId}`
+      }
+      
+      const response = await ApiClient.get(url)
 
       if (!response.ok) {
         throw new Error("Failed to fetch balance")
@@ -138,4 +159,5 @@ export class CashFlowService {
     }
     return ["fornecedores", "salarios", "aluguel", "impostos", "marketing", "outros"]
   }
+  
 }

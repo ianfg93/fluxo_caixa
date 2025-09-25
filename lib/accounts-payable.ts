@@ -227,9 +227,15 @@ export class AccountsPayableService {
     }
   }
 
-  static async getUpcomingPayments(days = 7): Promise<AccountPayable[]> {
+  static async getUpcomingPayments(days = 7, companyId?: string): Promise<AccountPayable[]> {
     try {
-      const response = await fetch(`/api/accounts-payable/upcoming?days=${days}`)
+      let url = `/api/accounts-payable/upcoming?days=${days}`
+      
+      if (companyId) {
+        url += `&company=${companyId}`
+      }
+
+      const response = await fetch(url)
 
       if (!response.ok) {
         throw new Error("Failed to fetch upcoming payments")
@@ -249,7 +255,7 @@ export class AccountsPayableService {
     }
   }
 
-  static async getTotalsByStatus(): Promise<Record<PaymentStatus, { count: number; amount: number }>> {
+  static async getTotalsByStatus(companyId?: string): Promise<Record<PaymentStatus, { count: number; amount: number }>> {
     const totals: Record<PaymentStatus, { count: number; amount: number }> = {
       pending: { count: 0, amount: 0 },
       paid: { count: 0, amount: 0 },
@@ -258,7 +264,13 @@ export class AccountsPayableService {
     }
 
     try {
-      const response = await fetch("/api/accounts-payable/totals")
+      let url = "/api/accounts-payable/totals"
+      
+      if (companyId) {
+        url += `?company=${companyId}`
+      }
+
+      const response = await fetch(url)
 
       if (!response.ok) {
         throw new Error("Failed to fetch totals")

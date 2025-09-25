@@ -1,61 +1,57 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
+import { ApiAuthService } from "@/lib/api-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    const result = await query(
-      "SELECT id, name, email, role, active, created_at FROM users ORDER BY created_at DESC"
-    )
+    // Autenticar usuário
+    const user = await ApiAuthService.authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+    }
 
-    const users = result.rows.map((row) => ({
+    // Apenas master e admin podem ver usuários
+    if (!ApiAuthService.hasPermission(user, 'manage_company') && !ApiAuthService.hasPermission(user, 'manage_all')) {
+      return NextResponse.json({ error: "Sem permissão" }, { status: 403 })
+    }
+
+    let sql = `
+      SELECT 
+        u.id, 
+        u.name, 
+        u.email, 
+        u.active, 
+        u.created_at,
+        ut.name as user_type,
+        c.name as company_name
+      FROM users u
+      INNER JOIN user_types ut ON u.user_type_id = ut.id
+      LEFT JOIN companies c ON u.company_id = c.id
+    `
+
+    let result
+    // Aplicar filtro de empresa se não for master
+    if (user.role !== 'master') {
+      sql += ` WHERE u.company_id = $1 ORDER BY u.created_at DESC`
+      result = await query(sql, [user.companyId])
+    } else {
+      sql += ` ORDER BY u.created_at DESC`
+      result = await query(sql)
+    }
+
+    const users = result.rows.map((row: any) => ({
       id: row.id,
       name: row.name,
       email: row.email,
-      role: row.role,
+      role: row.user_type,
       status: row.active ? "active" : "inactive",
       createdAt: row.created_at,
-      createdBy: "Sistema", // Pode ser melhorado depois
+      companyName: row.company_name,
     }))
 
     return NextResponse.json({ users })
   } catch (error) {
     console.error("Get users API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const userData = await request.json()
-
-    // Hash da senha usando pgcrypto
-    const result = await query(
-      `INSERT INTO users (name, email, password_hash, role, active) 
-       VALUES ($1, $2, crypt($3, gen_salt('bf')), $4, $5) 
-       RETURNING id, name, email, role, active, created_at`,
-      [
-        userData.name,
-        userData.email,
-        userData.password,
-        userData.role,
-        userData.status === "active"
-      ]
-    )
-
-    const row = result.rows[0]
-    const newUser = {
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      role: row.role,
-      status: row.active ? "active" : "inactive",
-      createdAt: row.created_at,
-      createdBy: "Sistema"
-    }
-
-    return NextResponse.json({ user: newUser })
-  } catch (error) {
-    console.error("Create user API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

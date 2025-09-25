@@ -25,11 +25,11 @@ export interface DashboardMetrics {
 }
 
 export class ReportsService {
-  static async getDashboardMetrics(): Promise<DashboardMetrics> {
+  static async getDashboardMetrics(companyId?: string): Promise<DashboardMetrics> {
     try {
-      const balance = await CashFlowService.getBalance()
-      const payableTotals = await AccountsPayableService.getTotalsByStatus()
-      const upcomingPayments = await AccountsPayableService.getUpcomingPayments(7)
+      const balance = await CashFlowService.getBalance(companyId)
+      const payableTotals = await AccountsPayableService.getTotalsByStatus(companyId) // Agora funciona
+      const upcomingPayments = await AccountsPayableService.getUpcomingPayments(7, companyId) // Agora funciona
 
       return {
         totalBalance: balance.total,
@@ -52,9 +52,9 @@ export class ReportsService {
     }
   }
 
-  static async getMonthlyData(): Promise<MonthlyData[]> {
+  static async getMonthlyData(companyId?: string): Promise<MonthlyData[]> {
     try {
-      const transactions = await CashFlowService.getTransactions()
+      const transactions = await CashFlowService.getTransactions(undefined, companyId)
       const monthlyMap = new Map<string, { entries: number; exits: number }>()
 
       // Initialize last 6 months
@@ -95,9 +95,9 @@ export class ReportsService {
     }
   }
 
-  static async getCategoryBreakdown(type: "entry" | "exit"): Promise<CategoryData[]> {
+  static async getCategoryBreakdown(type: "entry" | "exit", companyId?: string): Promise<CategoryData[]> {
     try {
-      const transactions = await CashFlowService.getTransactions(type)
+      const transactions = await CashFlowService.getTransactions(type, companyId)
       const categoryMap = new Map<string, { amount: number; count: number }>()
 
       transactions.forEach((transaction) => {

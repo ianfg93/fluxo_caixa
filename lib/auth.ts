@@ -20,6 +20,7 @@ export interface AuthState {
 
 export class AuthService {
   private static readonly STORAGE_KEY = "cash_flow_auth"
+  private static readonly TOKEN_KEY = "cash_flow_token"
 
   static async login(email: string, password: string): Promise<User | null> {
     try {
@@ -41,8 +42,10 @@ export class AuthService {
         createdAt: new Date(data.user.createdAt),
       }
 
-      // Store user in localStorage for client-side persistence
+      // Salvar tanto o user quanto o token
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user))
+      localStorage.setItem(this.TOKEN_KEY, data.token)
+      
       return user
     } catch (error) {
       console.error("Login error:", error)
@@ -52,6 +55,12 @@ export class AuthService {
 
   static logout(): void {
     localStorage.removeItem(this.STORAGE_KEY)
+    localStorage.removeItem(this.TOKEN_KEY)
+  }
+
+  static getToken(): string | null {
+    if (typeof window === "undefined") return null
+    return localStorage.getItem(this.TOKEN_KEY)
   }
 
   static getCurrentUser(): User | null {
