@@ -137,8 +137,8 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
                   <SelectValue placeholder="Selecione o nível" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="basic">Básico</SelectItem>
-                  <SelectItem value="manager">Gerente</SelectItem>
+                  <SelectItem value="basic">Administrados</SelectItem>
+                  <SelectItem value="manager">Operacional</SelectItem>
                   <SelectItem value="master">Master</SelectItem>
                 </SelectContent>
               </Select>

@@ -61,7 +61,7 @@ export default function AccountsPayablePage() {
   }
 
   const handleDelete = async (account: AccountPayable) => {
-    if (!hasPermission("manager")) {
+    if (!hasPermission("administrator")) {
       alert("Você não tem permissão para excluir contas.")
       return
     }
@@ -141,7 +141,7 @@ export default function AccountsPayablePage() {
     return filteredAccounts.length
   }
 
-  if (!hasPermission("manager")) {
+  if (!hasPermission("administrator")) {
     return (
       <AuthenticatedLayout>
         <Card>
@@ -264,7 +264,7 @@ export default function AccountsPayablePage() {
                             {formatCurrency(account.amount)}
                           </p>
                         </div>
-                        {hasPermission("manager") && (
+                        {hasPermission("administrator") && (
                           <div className="flex gap-2">
                             <Button 
                               size="sm" 

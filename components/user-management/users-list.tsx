@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Edit, Trash2, Search, UserPlus } from "lucide-react"
+import { Edit, Trash2, Search, UserPlus, Building2 } from "lucide-react"
 import type { User } from "@/lib/user-management"
 
 interface UsersListProps {
@@ -22,6 +22,19 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [companyFilter, setCompanyFilter] = useState<string>("all")
+
+  // Lista única de empresas para o filtro
+  const companies = useMemo(() => {
+    const uniqueCompanies = Array.from(
+      new Set(
+        users
+          .map(user => user.companyName)
+          .filter((companyName): companyName is string => typeof companyName === "string" && companyName.length > 0)
+      )
+    ).sort()
+    return uniqueCompanies
+  }, [users])
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -29,8 +42,9 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRole = roleFilter === "all" || user.role === roleFilter
     const matchesStatus = statusFilter === "all" || user.status === statusFilter
+    const matchesCompany = companyFilter === "all" || user.companyName === companyFilter
 
-    return matchesSearch && matchesRole && matchesStatus
+    return matchesSearch && matchesRole && matchesStatus && matchesCompany
   })
 
   const getRoleBadgeColor = (role: User["role"]) => {
@@ -55,9 +69,9 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
       case "master":
         return "Master"
       case "manager":
-        return "Gerente"
+        return "Administrador"
       case "basic":
-        return "Básico"
+        return "Operacional"
       default:
         return role
     }
@@ -82,7 +96,7 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex flex-col lg:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
@@ -92,28 +106,61 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
               className="pl-10"
             />
           </div>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Filtrar por nível" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os níveis</SelectItem>
-              <SelectItem value="basic">Básico</SelectItem>
-              <SelectItem value="manager">Gerente</SelectItem>
-              <SelectItem value="master">Master</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Filtrar por status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="active">Ativo</SelectItem>
-              <SelectItem value="inactive">Inativo</SelectItem>
-            </SelectContent>
-          </Select>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:w-auto">
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full lg:w-48">
+                <SelectValue placeholder="Filtrar por nível" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os níveis</SelectItem>
+                <SelectItem value="basic">Operacional</SelectItem>
+                <SelectItem value="manager">Administrador</SelectItem>
+                <SelectItem value="master">Master</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full lg:w-48">
+                <SelectValue placeholder="Filtrar por status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="active">Ativo</SelectItem>
+                <SelectItem value="inactive">Inativo</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {companies.length > 0 && (
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                <SelectTrigger className="w-full lg:w-48">
+                  <SelectValue placeholder="Filtrar por empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as empresas</SelectItem>
+                  {companies.map((company) => (
+                    <SelectItem key={company} value={company}>
+                      {company}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
+
+        {/* Stats */}
+        {(searchTerm || roleFilter !== "all" || statusFilter !== "all" || companyFilter !== "all") && (
+          <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              Exibindo <span className="font-medium">{filteredUsers.length}</span> de{" "}
+              <span className="font-medium">{users.length}</span> usuários
+              {companyFilter !== "all" && (
+                <span> • Empresa: <span className="font-medium">{companyFilter}</span></span>
+              )}
+            </p>
+          </div>
+        )}
 
         <div className="rounded-md border">
           <Table>
@@ -121,6 +168,7 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Empresa</TableHead>
                 <TableHead>Nível</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Criado em</TableHead>
@@ -131,8 +179,11 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Nenhum usuário encontrado
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    {searchTerm || roleFilter !== "all" || statusFilter !== "all" || companyFilter !== "all" 
+                      ? "Nenhum usuário encontrado com os filtros aplicados"
+                      : "Nenhum usuário encontrado"
+                    }
                   </TableCell>
                 </TableRow>
               ) : (
@@ -140,6 +191,16 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      {user.companyName ? (
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm">{user.companyName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge className={getRoleBadgeColor(user.role)}>{getRoleLabel(user.role)}</Badge>
                     </TableCell>

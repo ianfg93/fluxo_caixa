@@ -1,93 +1,98 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { UserManagementService, type User } from "@/lib/user-management"
-import { UserForm } from "@/components/user-management/user-form"
 import { UsersList } from "@/components/user-management/users-list"
-import { useAuth } from "@/hooks/use-auth"
+import { UserForm } from "@/components/user-management/user-form"
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout"
+import { UserManagementService, type User } from "@/lib/user-management"
+import { useAuth } from "@/hooks/use-auth"
+import { Building2 } from "lucide-react"
 
 export default function UsersPage() {
   const { hasPermission } = useAuth()
   const [users, setUsers] = useState<User[]>([])
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [userToDelete, setUserToDelete] = useState<User | null>(null)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
 
-  useEffect(() => {
-    loadUsers()
-  }, [])
+  // Verificar permissão - master e administrator podem acessar
+  if (!hasPermission('administrator') && !hasPermission('master')) {
+    return (
+      <AuthenticatedLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-semibold">Acesso Restrito</h2>
+            <p className="text-muted-foreground">Apenas administradores podem gerenciar usuários.</p>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    )
+  }
 
   const loadUsers = async () => {
-    try {
-      const allUsers = await UserManagementService.getUsers()
-      setUsers(allUsers)
-    } catch (error) {
-      console.error("Erro ao carregar usuários:", error)
-    }
+    setLoading(true)
+    const data = await UserManagementService.getUsers()
+    setUsers(data)
+    setLoading(false)
   }
 
   const handleAdd = () => {
-    setSelectedUser(null)
+    setEditingUser(null)
     setShowForm(true)
   }
 
   const handleEdit = (user: User) => {
-    setSelectedUser(user)
+    setEditingUser(user)
     setShowForm(true)
   }
 
-  const handleDelete = (user: User) => {
-    setUserToDelete(user)
-    setShowDeleteDialog(true)
-  }
-
-  const confirmDelete = async () => {
-    if (userToDelete) {
-      try {
-        await UserManagementService.deleteUser(userToDelete.id)
-        loadUsers()
-        setShowDeleteDialog(false)
-        setUserToDelete(null)
-      } catch (error) {
-        console.error("Erro ao excluir usuário:", error)
-        alert("Erro ao excluir usuário. Tente novamente.")
+  const handleDelete = async (user: User) => {
+    if (confirm(`Tem certeza que deseja excluir o usuário ${user.name}?`)) {
+      const success = await UserManagementService.deleteUser(user.id)
+      if (success) {
+        await loadUsers()
       }
     }
   }
 
   const handleFormSuccess = () => {
-    loadUsers()
     setShowForm(false)
-    setSelectedUser(null)
+    setEditingUser(null)
+    loadUsers()
   }
 
   const handleFormCancel = () => {
     setShowForm(false)
-    setSelectedUser(null)
+    setEditingUser(null)
   }
 
-  if (!hasPermission("master")) {
+  useEffect(() => {
+    loadUsers()
+  }, [])
+
+  if (loading) {
     return (
       <AuthenticatedLayout>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              Você não tem permissão para acessar o gerenciamento de usuários.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <h1 className="text-3xl font-bold">Usuários</h1>
+          <div className="animate-pulse">
+            <div className="h-32 bg-muted rounded-lg mb-4"></div>
+            <div className="h-64 bg-muted rounded-lg"></div>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    )
+  }
+
+  if (showForm) {
+    return (
+      <AuthenticatedLayout>
+        <UserForm
+          user={editingUser ?? undefined}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormCancel}
+        />
       </AuthenticatedLayout>
     )
   }
@@ -96,46 +101,19 @@ export default function UsersPage() {
     <AuthenticatedLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
-          <p className="text-muted-foreground">Gerencie usuários e suas permissões no sistema</p>
+          <h1 className="text-3xl font-bold">Usuários</h1>
+          <p className="text-muted-foreground">
+            Gerencie os usuários do sistema
+          </p>
         </div>
         
-        <UsersList 
-          users={users} 
-          onAdd={handleAdd} 
-          onEdit={handleEdit} 
-          onDelete={handleDelete} 
-          onRefresh={loadUsers} 
+        <UsersList
+          users={users}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onAdd={handleAdd}
+          onRefresh={loadUsers}
         />
-        
-        <Dialog open={showForm} onOpenChange={setShowForm}>
-          <DialogContent className="max-w-4xl">
-            <UserForm 
-              user={selectedUser ?? undefined} 
-              onSuccess={handleFormSuccess} 
-              onCancel={handleFormCancel} 
-            />
-          </DialogContent>
-        </Dialog>
-        
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirmar Exclusão</DialogTitle>
-              <DialogDescription>
-                Tem certeza que deseja excluir o usuário "{userToDelete?.name}"? Esta ação não pode ser desfeita.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={confirmDelete}>
-                Excluir
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </AuthenticatedLayout>
   )

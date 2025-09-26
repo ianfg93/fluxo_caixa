@@ -1,3 +1,5 @@
+import { ApiClient } from './api-client'
+
 export interface User {
   id: string
   name: string
@@ -7,6 +9,7 @@ export interface User {
   createdAt: Date
   lastLogin?: Date
   createdBy: string
+  companyName?: string
 }
 
 export interface CreateUserData {
@@ -26,12 +29,12 @@ export interface UpdateUserData {
 export class UserManagementService {
   static async getUsers(): Promise<User[]> {
     try {
-      const response = await fetch("/api/users")
-      
+      const response = await ApiClient.get("/api/users")
+     
       if (!response.ok) {
         throw new Error("Failed to fetch users")
       }
-
+      
       const data = await response.json()
       return data.users.map((user: any) => ({
         ...user,
@@ -46,22 +49,17 @@ export class UserManagementService {
 
   static async createUser(userData: CreateUserData): Promise<User | null> {
     try {
-      const response = await fetch("/api/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(userData),
-      })
-
+      const response = await ApiClient.post("/api/users", userData)
+      
       if (!response.ok) {
         throw new Error("Failed to create user")
       }
-
+      
       const data = await response.json()
       return {
         ...data.user,
         createdAt: new Date(data.user.createdAt),
+        lastLogin: data.user.lastLogin ? new Date(data.user.lastLogin) : undefined,
       }
     } catch (error) {
       console.error("Create user error:", error)
@@ -71,22 +69,17 @@ export class UserManagementService {
 
   static async updateUser(id: string, updates: UpdateUserData): Promise<User | null> {
     try {
-      const response = await fetch(`/api/users/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updates),
-      })
-
+      const response = await ApiClient.put(`/api/users/${id}`, updates)
+      
       if (!response.ok) {
         throw new Error("Failed to update user")
       }
-
+      
       const data = await response.json()
       return {
         ...data.user,
         createdAt: new Date(data.user.createdAt),
+        lastLogin: data.user.lastLogin ? new Date(data.user.lastLogin) : undefined,
       }
     } catch (error) {
       console.error("Update user error:", error)
@@ -96,10 +89,7 @@ export class UserManagementService {
 
   static async deleteUser(id: string): Promise<boolean> {
     try {
-      const response = await fetch(`/api/users/${id}`, {
-        method: "DELETE",
-      })
-
+      const response = await ApiClient.delete(`/api/users/${id}`)
       return response.ok
     } catch (error) {
       console.error("Delete user error:", error)
