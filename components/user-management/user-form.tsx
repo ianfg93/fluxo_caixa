@@ -73,15 +73,12 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
         })
       } else {
         // Create new user
-        UserManagementService.createUser(
-          {
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            password: formData.password,
-          },
-          authState.user?.name || "Unknown",
-        )
+        UserManagementService.createUser({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          password: formData.password,
+        })
       }
 
       onSuccess()

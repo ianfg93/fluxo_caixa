@@ -13,8 +13,24 @@ export interface Company {
   state?: string
   zipCode?: string
   active: boolean
-  subscriptionPlan?: string
+  subscriptionPlan: string
+  subscriptionExpiresAt?: Date
+  maxUsers: number
+  maxTransactionsPerMonth: number
+  settings?: Record<string, any>
   createdAt: Date
+  updatedAt: Date
+}
+
+export interface CreateAdminData {
+  name: string
+  email: string
+  password: string
+}
+
+export interface CreateCompanyWithAdminData {
+  company: Omit<Company, "id" | "active" | "createdAt" | "updatedAt">
+  admin: CreateAdminData
 }
 
 export class CompaniesService {
@@ -38,7 +54,7 @@ export class CompaniesService {
   }
 
   static async createCompany(
-    company: Omit<Company, "id" | "active" | "createdAt">
+    company: Omit<Company, "id" | "active" | "createdAt" | "updatedAt">
   ): Promise<Company | null> {
     try {
       const response = await ApiClient.post("/api/companies", company)
@@ -54,6 +70,35 @@ export class CompaniesService {
       }
     } catch (error) {
       console.error("Create company error:", error)
+      return null
+    }
+  }
+
+  static async createCompanyWithAdmin(
+    data: CreateCompanyWithAdminData
+  ): Promise<{ company: Company; admin: { id: string; email: string } } | null> {
+    try {
+      const response = await ApiClient.post("/api/companies/with-admin", data)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to create company with admin")
+      }
+
+      const responseData = await response.json()
+      return {
+        company: {
+          ...responseData.company,
+          createdAt: new Date(responseData.company.createdAt),
+          updatedAt: new Date(responseData.company.updatedAt),
+          subscriptionExpiresAt: responseData.company.subscriptionExpiresAt 
+            ? new Date(responseData.company.subscriptionExpiresAt) 
+            : undefined,
+        },
+        admin: responseData.admin
+      }
+    } catch (error) {
+      console.error("Create company with admin error:", error)
       return null
     }
   }
