@@ -46,10 +46,37 @@ export class CompaniesService {
       return data.companies.map((company: any) => ({
         ...company,
         createdAt: new Date(company.createdAt),
+        updatedAt: new Date(company.updatedAt),
+        subscriptionExpiresAt: company.subscriptionExpiresAt 
+          ? new Date(company.subscriptionExpiresAt) 
+          : undefined,
       }))
     } catch (error) {
       console.error("Get companies error:", error)
       return []
+    }
+  }
+
+  static async getCompany(id: string): Promise<Company | null> {
+    try {
+      const response = await ApiClient.get(`/api/companies/${id}`)
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch company")
+      }
+
+      const data = await response.json()
+      return {
+        ...data.company,
+        createdAt: new Date(data.company.createdAt),
+        updatedAt: new Date(data.company.updatedAt),
+        subscriptionExpiresAt: data.company.subscriptionExpiresAt 
+          ? new Date(data.company.subscriptionExpiresAt) 
+          : undefined,
+      }
+    } catch (error) {
+      console.error("Get company error:", error)
+      return null
     }
   }
 
@@ -71,6 +98,48 @@ export class CompaniesService {
     } catch (error) {
       console.error("Create company error:", error)
       return null
+    }
+  }
+
+  static async updateCompany(
+    id: string,
+    company: Partial<Omit<Company, "id" | "createdAt" | "updatedAt">>
+  ): Promise<Company | null> {
+    try {
+      const response = await ApiClient.put(`/api/companies/${id}`, company)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to update company")
+      }
+
+      const data = await response.json()
+      return {
+        ...data.company,
+        createdAt: new Date(data.company.createdAt),
+        updatedAt: new Date(data.company.updatedAt),
+        subscriptionExpiresAt: data.company.subscriptionExpiresAt 
+          ? new Date(data.company.subscriptionExpiresAt) 
+          : undefined,
+      }
+    } catch (error) {
+      console.error("Update company error:", error)
+      return null
+    }
+  }
+
+  static async toggleCompanyStatus(id: string): Promise<boolean> {
+    try {
+      const response = await ApiClient.patch(`/api/companies/${id}/toggle-status`)
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle company status")
+      }
+
+      return true
+    } catch (error) {
+      console.error("Toggle company status error:", error)
+      return false
     }
   }
 

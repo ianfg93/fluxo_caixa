@@ -2,7 +2,10 @@ import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
 import { ApiAuthService } from "@/lib/api-auth"
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
@@ -10,20 +13,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    let sql = "SELECT * FROM companies"
-    let params: any[] = []
-
-    // Se não for master, só ver sua própria empresa
-    if (user.role !== 'master') {
-      sql += " WHERE id = $1"
-      params.push(user.companyId)
+    // Só master pode ver empresas ou usuário pode ver sua própria empresa
+    if (user.role !== 'master' && user.companyId !== params.id) {
+      return NextResponse.json({ error: "Sem permissão" }, { status: 403 })
     }
 
-    sql += " ORDER BY created_at DESC" // Ordenar por data de criação (mais recente primeiro)
+    const result = await query(
+      "SELECT * FROM companies WHERE id = $1",
+      [params.id]
+    )
 
-    const result = await query(sql, params)
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 })
+    }
 
-    const companies = result.rows.map((row) => ({
+    const row = result.rows[0]
+    const company = {
       id: row.id,
       name: row.name,
       tradeName: row.trade_name,
@@ -43,16 +48,19 @@ export async function GET(request: NextRequest) {
       settings: row.settings,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-    }))
+    }
 
-    return NextResponse.json({ companies })
+    return NextResponse.json({ company })
   } catch (error) {
-    console.error("Get companies API error:", error)
+    console.error("Get company API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
     // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
@@ -60,24 +68,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Só master pode criar empresas
+    // Só master pode editar empresas
     if (!ApiAuthService.hasPermission(user, 'create_company')) {
-      return NextResponse.json({ error: "Sem permissão para criar empresas" }, { status: 403 })
+      return NextResponse.json({ error: "Sem permissão para editar empresas" }, { status: 403 })
     }
 
     const companyData = await request.json()
+
+    // Validações básicas
+    if (!companyData.name) {
+      return NextResponse.json({ error: "Nome da empresa é obrigatório" }, { status: 400 })
+    }
 
     // Validar se tem CNPJ ou CPF
     if (!companyData.cnpj && !companyData.cpf) {
       return NextResponse.json({ error: "CNPJ ou CPF é obrigatório" }, { status: 400 })
     }
 
+    // Verificar se empresa existe
+    const existingCompany = await query(
+      "SELECT id FROM companies WHERE id = $1",
+      [params.id]
+    )
+
+    if (existingCompany.rows.length === 0) {
+      return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 })
+    }
+
+    // Atualizar empresa
     const result = await query(
-      `INSERT INTO companies 
-       (name, trade_name, cnpj, cpf, email, phone, address, city, state, zip_code, 
-        subscription_plan, subscription_expires_at, max_users, max_transactions_per_month, 
-        settings, active) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+      `UPDATE companies SET 
+       name = $1,
+       trade_name = $2,
+       cnpj = $3,
+       cpf = $4,
+       email = $5,
+       phone = $6,
+       address = $7,
+       city = $8,
+       state = $9,
+       zip_code = $10,
+       subscription_plan = $11,
+       subscription_expires_at = $12,
+       max_users = $13,
+       max_transactions_per_month = $14,
+       active = $15,
+       updated_at = NOW()
+       WHERE id = $16
        RETURNING *`,
       [
         companyData.name,
@@ -94,13 +131,13 @@ export async function POST(request: NextRequest) {
         companyData.subscriptionExpiresAt || null,
         companyData.maxUsers || 5,
         companyData.maxTransactionsPerMonth || 1000,
-        JSON.stringify(companyData.settings || {}),
-        true // active
+        companyData.active ?? true,
+        params.id
       ]
     )
 
     const row = result.rows[0]
-    const newCompany = {
+    const updatedCompany = {
       id: row.id,
       name: row.name,
       tradeName: row.trade_name,
@@ -122,9 +159,13 @@ export async function POST(request: NextRequest) {
       updatedAt: row.updated_at,
     }
 
-    return NextResponse.json({ company: newCompany })
+    return NextResponse.json({ 
+      company: updatedCompany,
+      message: "Empresa atualizada com sucesso"
+    })
+
   } catch (error) {
-    console.error("Create company API error:", error)
+    console.error("Update company API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
