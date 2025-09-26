@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect, createContext, useContext, type ReactNode } from "react"
-import { AuthService, type AuthState, type UserRole } from "@/lib/auth"
+import { AuthService, type AuthState, type UserRole, type User } from "@/lib/auth"
 
 const AuthContext = createContext<{
   authState: AuthState
   login: (email: string, password: string) => Promise<boolean>
   logout: () => void
+  updateUserData: (updates: Partial<User>) => void
   hasPermission: (requiredRole: UserRole) => boolean
   isMaster: () => boolean
   canCreateCompanies: () => boolean
@@ -40,6 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthState({ user: null, isAuthenticated: false })
   }
 
+  const updateUserData = (updates: Partial<User>) => {
+    if (authState.user) {
+      const updatedUser = { ...authState.user, ...updates }
+      setAuthState({ user: updatedUser, isAuthenticated: true })
+    }
+  }
+
   const hasPermission = (requiredRole: UserRole): boolean => {
     if (!authState.user) return false
     return AuthService.hasPermission(authState.user.role, requiredRole)
@@ -65,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authState, 
       login, 
       logout, 
+      updateUserData,
       hasPermission,
       isMaster,
       canCreateCompanies,
@@ -82,3 +91,6 @@ export function useAuth() {
   }
   return context
 }
+
+// Export do tipo User para usar em outros componentes
+export type { User } from "@/lib/auth"
