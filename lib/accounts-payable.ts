@@ -1,6 +1,6 @@
 import { ApiClient } from './api-client'
 
-export type PaymentStatus = "pending" | "paid" | "overdue" | "cancelled"
+export type PaymentStatus = "pending" | "paid" | "overdue" | "cancelled" | "partially_paid"
 export type PaymentPriority = "low" | "medium" | "high" | "urgent"
 
 export interface Supplier {
@@ -17,6 +17,9 @@ export interface AccountPayable {
   id: string
   supplierId: string
   supplierName: string
+  supplierDocument?: string  // ✅ ADICIONAR
+  supplierEmail?: string     // ✅ ADICIONAR
+  supplierPhone?: string     // ✅ ADICIONAR
   description: string
   amount: number
   dueDate: Date
@@ -32,8 +35,41 @@ export interface AccountPayable {
   createdAt: Date
 }
 
+// ✅ Interface para criação de conta (campos que o formulário envia)
+export interface CreateAccountPayable {
+  supplierName: string
+  supplierDocument?: string
+  supplierEmail?: string
+  supplierPhone?: string
+  description: string
+  amount: number
+  dueDate: Date
+  issueDate: Date
+  status?: PaymentStatus
+  priority: PaymentPriority
+  category: string
+  invoiceNumber?: string
+  notes?: string
+}
+
+// ✅ Interface para atualização de conta
+export interface UpdateAccountPayable {
+  supplierName?: string
+  supplierDocument?: string
+  supplierEmail?: string
+  supplierPhone?: string
+  description?: string
+  amount?: number
+  dueDate?: Date
+  issueDate?: Date
+  status?: PaymentStatus
+  priority?: PaymentPriority
+  category?: string
+  invoiceNumber?: string
+  notes?: string
+}
+
 export class AccountsPayableService {
-  // ✅ CORRIGIDO: Usar ApiClient
   static async getAccountsPayable(status?: PaymentStatus): Promise<AccountPayable[]> {
     console.log('🔍 getAccountsPayable chamado com status:', status)
     
@@ -74,7 +110,6 @@ export class AccountsPayableService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
   static async getSuppliers(): Promise<Supplier[]> {
     try {
       const response = await ApiClient.get("/api/suppliers")
@@ -94,9 +129,9 @@ export class AccountsPayableService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient e remover createdBy dos parâmetros
+  // ✅ CORRIGIDO: Usar CreateAccountPayable interface
   static async addAccountPayable(
-    account: Omit<AccountPayable, "id" | "createdAt" | "supplierName" | "createdBy">,
+    account: CreateAccountPayable,
   ): Promise<AccountPayable | null> {
     try {
       const response = await ApiClient.post("/api/accounts-payable", account)
@@ -119,7 +154,6 @@ export class AccountsPayableService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
   static async addSupplier(supplier: Omit<Supplier, "id" | "createdAt">): Promise<Supplier | null> {
     try {
       const response = await ApiClient.post("/api/suppliers", supplier)
@@ -139,8 +173,8 @@ export class AccountsPayableService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
-  static async updateAccountPayable(id: string, updates: Partial<AccountPayable>): Promise<AccountPayable | null> {
+  // ✅ CORRIGIDO: Usar UpdateAccountPayable interface
+  static async updateAccountPayable(id: string, updates: UpdateAccountPayable): Promise<AccountPayable | null> {
     try {
       const response = await ApiClient.put(`/api/accounts-payable/${id}`, updates)
 
@@ -162,7 +196,6 @@ export class AccountsPayableService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
   static async markAsPaid(id: string, paidAmount: number, paidDate: Date): Promise<AccountPayable | null> {
     try {
       const response = await ApiClient.post(`/api/accounts-payable/${id}/pay`, { paidAmount, paidDate })
@@ -185,7 +218,6 @@ export class AccountsPayableService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
   static async getOverdueAccounts(): Promise<AccountPayable[]> {
     try {
       const response = await ApiClient.get("/api/accounts-payable?status=overdue")
@@ -208,7 +240,6 @@ export class AccountsPayableService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
   static async getUpcomingPayments(days = 7, companyId?: string): Promise<AccountPayable[]> {
     try {
       let url = `/api/accounts-payable/upcoming?days=${days}`
@@ -237,13 +268,13 @@ export class AccountsPayableService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
   static async getTotalsByStatus(companyId?: string): Promise<Record<PaymentStatus, { count: number; amount: number }>> {
     const totals: Record<PaymentStatus, { count: number; amount: number }> = {
       pending: { count: 0, amount: 0 },
       paid: { count: 0, amount: 0 },
       overdue: { count: 0, amount: 0 },
       cancelled: { count: 0, amount: 0 },
+      partially_paid: { count: 0, amount: 0 },
     }
 
     try {
@@ -264,6 +295,16 @@ export class AccountsPayableService {
     } catch (error) {
       console.error("Get totals by status error:", error)
       return totals
+    }
+  }
+
+  static async deleteAccount(id: string): Promise<boolean> {
+    try {
+      const response = await ApiClient.delete(`/api/accounts-payable/${id}`)
+      return response.ok
+    } catch (error) {
+      console.error("Delete account error:", error)
+      return false
     }
   }
 }

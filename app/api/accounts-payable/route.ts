@@ -55,8 +55,11 @@ export async function GET(request: NextRequest) {
 
     const accounts = result.rows.map((row) => ({
       id: row.id,
-      supplierId: row.supplier_id || row.id, // Fallback para compatibilidade
+      supplierId: row.supplier_id || row.id,
       supplierName: row.supplier_name,
+      supplierDocument: row.supplier_document, // ✅ ADICIONAR
+      supplierEmail: row.supplier_email,       // ✅ ADICIONAR
+      supplierPhone: row.supplier_phone,       // ✅ ADICIONAR
       description: row.description,
       amount: Number.parseFloat(row.amount),
       dueDate: row.due_date,

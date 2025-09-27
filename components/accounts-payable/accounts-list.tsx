@@ -136,7 +136,7 @@ export function AccountsList() {
             <p className="text-muted-foreground">Gerencie as contas a pagar da empresa</p>
           </div>
         </div>
-        {hasPermission("manager") && (
+        {hasPermission("administrator") && (
           <Button onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Conta
@@ -165,7 +165,7 @@ export function AccountsList() {
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <p className="text-muted-foreground mb-4">Nenhuma conta encontrada</p>
-                  {hasPermission("manager") && (
+                  {hasPermission("administrator") && (
                     <Button onClick={() => setShowForm(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Adicionar primeira conta
@@ -216,7 +216,7 @@ export function AccountsList() {
                           <p className="text-xs text-green-600">Pago em {formatDate(account.paidDate)}</p>
                         )}
                       </div>
-                      {hasPermission("manager") && account.status === "pending" && (
+                      {hasPermission("administrator") && account.status === "pending" && (
                         <Button size="sm" onClick={() => handlePayment(account)}>
                           <DollarSign className="h-4 w-4 mr-1" />
                           Pagar

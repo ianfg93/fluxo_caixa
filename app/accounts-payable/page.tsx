@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, CreditCard, DollarSign } from "lucide-react"
+import { Plus, Edit, Trash2, CreditCard } from "lucide-react"
 import { AccountsPayableService, type AccountPayable } from "@/lib/accounts-payable"
 import { AccountForm } from "@/components/accounts-payable/account-form"
 import { useAuth } from "@/hooks/use-auth"
@@ -15,9 +15,10 @@ export default function AccountsPayablePage() {
   const [accounts, setAccounts] = useState<AccountPayable[]>([])
   const [filteredAccounts, setFilteredAccounts] = useState<AccountPayable[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [editingAccount, setEditingAccount] = useState<AccountPayable | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "today" })
-  const { hasPermission } = useAuth()
+  const { authState } = useAuth()
 
   const loadAccounts = async () => {
     try {
@@ -58,10 +59,30 @@ export default function AccountsPayablePage() {
   const handleSuccess = () => {
     loadAccounts()
     setShowForm(false)
+    setEditingAccount(null)
+  }
+
+  // ✅ CORRIGIDO: Verificar permissões baseadas nos roles reais
+  const canEdit = () => {
+    if (!authState.user) return false
+    const role = authState.user.role
+    return role === 'master' || role === 'administrator'
+  }
+
+  const canDelete = () => {
+    if (!authState.user) return false
+    const role = authState.user.role
+    return role === 'master' || role === 'administrator'
+  }
+
+  const canView = () => {
+    if (!authState.user) return false
+    const role = authState.user.role
+    return role === 'master' || role === 'administrator'
   }
 
   const handleDelete = async (account: AccountPayable) => {
-    if (!hasPermission("administrator")) {
+    if (!canDelete()) {
       alert("Você não tem permissão para excluir contas.")
       return
     }
@@ -73,13 +94,26 @@ export default function AccountsPayablePage() {
 
     if (confirm(confirmMessage)) {
       try {
-        console.log("Excluir conta:", account.id)
-        loadAccounts()
+        const success = await AccountsPayableService.deleteAccount(account.id)
+        if (success) {
+          loadAccounts()
+        } else {
+          alert("Erro ao excluir conta. Tente novamente.")
+        }
       } catch (error) {
         console.error("Erro ao excluir:", error)
         alert("Erro ao excluir conta. Tente novamente.")
       }
     }
+  }
+
+  // ✅ ADICIONADO: Função para editar conta
+  const handleEdit = (account: AccountPayable) => {
+    if (!canEdit()) {
+      alert("Você não tem permissão para editar contas.")
+      return
+    }
+    setEditingAccount(account)
   }
 
   const formatCurrency = (amount: number) => {
@@ -99,6 +133,7 @@ export default function AccountsPayablePage() {
       paid: "bg-green-100 text-green-800",
       overdue: "bg-red-100 text-red-800",
       cancelled: "bg-gray-100 text-gray-800",
+      partially_paid: "bg-blue-100 text-blue-800",
     }
     return colors[status] || "bg-gray-100 text-gray-800"
   }
@@ -109,6 +144,7 @@ export default function AccountsPayablePage() {
       paid: "Pago",
       overdue: "Vencido",
       cancelled: "Cancelado",
+      partially_paid: "Pago Parcialmente",
     }
     return texts[status] || status
   }
@@ -141,7 +177,8 @@ export default function AccountsPayablePage() {
     return filteredAccounts.length
   }
 
-  if (!hasPermission("administrator")) {
+  // ✅ CORRIGIDO: Verificação de permissão correta
+  if (!canView()) {
     return (
       <AuthenticatedLayout>
         <Card>
@@ -155,6 +192,20 @@ export default function AccountsPayablePage() {
     )
   }
 
+  // ✅ ADICIONADO: Mostrar formulário de edição
+  if (editingAccount) {
+    return (
+      <AuthenticatedLayout>
+        <AccountForm 
+          account={editingAccount}
+          onSuccess={handleSuccess} 
+          onCancel={() => setEditingAccount(null)} 
+        />
+      </AuthenticatedLayout>
+    )
+  }
+
+  // Mostrar formulário de nova conta
   if (showForm) {
     return (
       <AuthenticatedLayout>
@@ -264,24 +315,30 @@ export default function AccountsPayablePage() {
                             {formatCurrency(account.amount)}
                           </p>
                         </div>
-                        {hasPermission("administrator") && (
+                        {/* ✅ CORRIGIDO: Mostrar botões baseados nas permissões corretas */}
+                        {(canEdit() || canDelete()) && (
                           <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              title="Editar conta"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => handleDelete(account)}
-                              title="Excluir conta"
-                              className="hover:bg-red-50 hover:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canEdit() && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleEdit(account)}
+                                title="Editar conta"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete() && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => handleDelete(account)}
+                                title="Excluir conta"
+                                className="hover:bg-red-50 hover:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
