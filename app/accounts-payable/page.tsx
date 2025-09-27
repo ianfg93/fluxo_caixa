@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, CreditCard } from "lucide-react"
+import { Plus, Edit, Trash2, CreditCard, CheckCircle } from "lucide-react"
 import { AccountsPayableService, type AccountPayable } from "@/lib/accounts-payable"
 import { AccountForm } from "@/components/accounts-payable/account-form"
+import { PaymentModal } from "@/components/accounts-payable/payment-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout"
 import { DateFilter, type DateFilter as DateFilterType } from "@/components/cash-flow/date-filter"
@@ -16,6 +17,7 @@ export default function AccountsPayablePage() {
   const [filteredAccounts, setFilteredAccounts] = useState<AccountPayable[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingAccount, setEditingAccount] = useState<AccountPayable | null>(null)
+  const [paymentAccount, setPaymentAccount] = useState<AccountPayable | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "today" })
   const { authState } = useAuth()
@@ -60,6 +62,7 @@ export default function AccountsPayablePage() {
     loadAccounts()
     setShowForm(false)
     setEditingAccount(null)
+    setPaymentAccount(null)
   }
 
   // ✅ CORRIGIDO: Verificar permissões baseadas nos roles reais
@@ -114,6 +117,42 @@ export default function AccountsPayablePage() {
       return
     }
     setEditingAccount(account)
+  }
+
+  // ✅ ADICIONADO: Função para abrir modal de pagamento
+  const handleMarkAsPaid = (account: AccountPayable) => {
+    if (!canEdit()) {
+      alert("Você não tem permissão para marcar contas como pagas.")
+      return
+    }
+    setPaymentAccount(account)
+  }
+
+  // ✅ ADICIONADO: Função para processar o pagamento
+  const handlePaymentConfirm = async (paymentData: {
+    paidAmount: number
+    paidDate: Date
+    paymentMethod?: string
+    notes?: string
+  }) => {
+    if (!paymentAccount) return
+
+    try {
+      const result = await AccountsPayableService.markAsPaid(
+        paymentAccount.id,
+        paymentData.paidAmount,
+        paymentData.paidDate
+      )
+
+      if (result) {
+        handleSuccess()
+      } else {
+        alert("Erro ao marcar conta como paga. Tente novamente.")
+      }
+    } catch (error) {
+      console.error("Erro ao processar pagamento:", error)
+      alert("Erro ao processar pagamento. Tente novamente.")
+    }
   }
 
   const formatCurrency = (amount: number) => {
@@ -318,6 +357,18 @@ export default function AccountsPayablePage() {
                         {/* ✅ CORRIGIDO: Mostrar botões baseados nas permissões corretas */}
                         {(canEdit() || canDelete()) && (
                           <div className="flex gap-2">
+                            {/* ✅ ADICIONADO: Botão "Marcar como Pago" para contas pendentes */}
+                            {canEdit() && account.status === 'pending' && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleMarkAsPaid(account)}
+                                title="Marcar como pago"
+                                className="hover:bg-green-50 hover:text-green-600"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            )}
                             {canEdit() && (
                               <Button 
                                 size="sm" 
@@ -350,6 +401,14 @@ export default function AccountsPayablePage() {
           </div>
         )}
       </div>
+      {paymentAccount && (
+        <PaymentModal
+          account={paymentAccount}
+          isOpen={!!paymentAccount}
+          onClose={() => setPaymentAccount(null)}
+          onConfirm={handlePaymentConfirm}
+        />
+      )}
     </AuthenticatedLayout>
   )
 }
