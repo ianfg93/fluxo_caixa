@@ -27,8 +27,3 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_company_id ON users(company_id);
 CREATE INDEX idx_users_user_type_id ON users(user_type_id);
 CREATE INDEX idx_users_active ON users(active);
-
--- Inserir usuário master padrão
-INSERT INTO users (email, password_hash, name, user_type_id) VALUES
-('ian_ferreira93@hotmail.com', '123456', 'Master System', 
- (SELECT id FROM user_types WHERE name = 'master'));
