@@ -4,13 +4,11 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar permissão
     if (!ApiAuthService.hasPermission(user, 'view_company') && !ApiAuthService.hasPermission(user, 'view_all_companies')) {
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 })
     }
@@ -38,32 +36,24 @@ export async function GET(request: NextRequest) {
     let queryParams: any[] = []
     let whereConditions: string[] = []
 
-    // Aplicar filtro de empresa
     const targetCompanyId = companyFilter || user.companyId
     if (targetCompanyId) {
       whereConditions.push(`cft.company_id = $${queryParams.length + 1}::uuid`)
       queryParams.push(targetCompanyId)
     }
 
-    // Aplicar filtro de tipo se especificado
     if (type) {
       whereConditions.push(`cft.type = $${queryParams.length + 1}::varchar`)
       queryParams.push(type)
     }
 
-    // Montar query final
     let finalQuery = baseQuery
     if (whereConditions.length > 0) {
       finalQuery += ` WHERE ${whereConditions.join(' AND ')}`
     }
     finalQuery += ` ORDER BY cft.transaction_date DESC, cft.created_at DESC`
 
-    console.log("Query final:", finalQuery)
-    console.log("Parâmetros:", queryParams)
-
     const result = await query(finalQuery, queryParams)
-    
-    console.log("Resultado da query:", result.rows.length, "registros")
 
     const transactions = result.rows.map((row) => ({
       id: row.id,
@@ -79,28 +69,22 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ transactions })
   } catch (error) {
-    console.error("Get transactions API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
-  console.log("POST /api/cash-flow chamado")
-  
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar permissão
     if (!ApiAuthService.hasPermission(user, 'create_entries')) {
       return NextResponse.json({ error: "Sem permissão para criar transações" }, { status: 403 })
     }
 
     const transaction = await request.json()
-    console.log("Dados recebidos:", transaction)
 
     const result = await query(
       `INSERT INTO cash_flow_transactions 
@@ -132,10 +116,8 @@ export async function POST(request: NextRequest) {
       notes: row.notes,
     }
 
-    console.log("Transação criada:", newTransaction)
     return NextResponse.json({ transaction: newTransaction })
   } catch (error) {
-    console.error("Add transaction API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

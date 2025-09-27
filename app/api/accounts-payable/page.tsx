@@ -25,13 +25,12 @@ export default function AccountsPayablePage() {
       const data = await AccountsPayableService.getAccountsPayable()
       setAccounts(data)
     } catch (error) {
-      console.error("Erro ao carregar contas a pagar:", error)
+      
     } finally {
       setLoading(false)
     }
   }
 
-  // Filtrar contas quando os dados ou filtro mudam
   useEffect(() => {
     let filtered = accounts
 
@@ -73,11 +72,8 @@ export default function AccountsPayablePage() {
 
     if (confirm(confirmMessage)) {
       try {
-        // Implementar método de exclusão se necessário
-        console.log("Excluir conta:", account.id)
         loadAccounts()
       } catch (error) {
-        console.error("Erro ao excluir:", error)
         alert("Erro ao excluir conta. Tente novamente.")
       }
     }
@@ -134,7 +130,6 @@ export default function AccountsPayablePage() {
     return texts[priority] || priority
   }
 
-  // Calcular totais do período filtrado
   const getTotalAmount = () => {
     return filteredAccounts.reduce((total, account) => total + account.amount, 0)
   }
@@ -184,7 +179,6 @@ export default function AccountsPayablePage() {
           </Button>
         </div>
 
-        {/* Filtros de Data e Resumo lado a lado */}
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 lg:flex-[2]">
             <DateFilter 

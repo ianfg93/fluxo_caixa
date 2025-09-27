@@ -20,7 +20,7 @@ export default function HomePage() {
   }, [authState.isAuthenticated, router])
 
   if (authState.isAuthenticated) {
-    return null // Will redirect to dashboard
+    return null
   }
 
   return <LoginForm />

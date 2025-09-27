@@ -28,8 +28,8 @@ export class ReportsService {
   static async getDashboardMetrics(companyId?: string): Promise<DashboardMetrics> {
     try {
       const balance = await CashFlowService.getBalance(companyId)
-      const payableTotals = await AccountsPayableService.getTotalsByStatus(companyId) // Agora funciona
-      const upcomingPayments = await AccountsPayableService.getUpcomingPayments(7, companyId) // Agora funciona
+      const payableTotals = await AccountsPayableService.getTotalsByStatus(companyId)
+      const upcomingPayments = await AccountsPayableService.getUpcomingPayments(7, companyId)
 
       return {
         totalBalance: balance.total,
@@ -57,15 +57,13 @@ export class ReportsService {
       const transactions = await CashFlowService.getTransactions(undefined, companyId)
       const monthlyMap = new Map<string, { entries: number; exits: number }>()
 
-      // Initialize last 6 months
       for (let i = 5; i >= 0; i--) {
         const date = new Date()
         date.setMonth(date.getMonth() - i)
-        const monthKey = date.toISOString().slice(0, 7) // YYYY-MM format
+        const monthKey = date.toISOString().slice(0, 7)
         monthlyMap.set(monthKey, { entries: 0, exits: 0 })
       }
 
-      // Aggregate transactions by month
       transactions.forEach((transaction) => {
         const monthKey = new Date(transaction.date).toISOString().slice(0, 7)
         const monthData = monthlyMap.get(monthKey)
@@ -79,7 +77,6 @@ export class ReportsService {
         }
       })
 
-      // Convert to array format
       return Array.from(monthlyMap.entries()).map(([month, data]) => ({
         month: new Date(month + "-01").toLocaleDateString("pt-BR", {
           month: "short",
@@ -186,7 +183,7 @@ export class ReportsService {
         })
       })
 
-      return trendData.slice(-30) // Last 30 data points
+      return trendData.slice(-30)
     } catch (error) {
       console.error("Get cash flow trend error:", error)
       return []

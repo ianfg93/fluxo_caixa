@@ -16,7 +16,6 @@ export interface EmailTemplate {
   body: string
 }
 
-// Mock notifications data
 const mockNotifications: Notification[] = [
   {
     id: "1",
@@ -94,13 +93,9 @@ export class NotificationService {
 
 export class EmailService {
   static async sendEmail(to: string, subject: string, body: string): Promise<boolean> {
-    // Mock email sending - in production, this would integrate with an email service
-    console.log("[v0] Sending email:", { to, subject, body })
 
-    // Simulate API call delay
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Mock success (90% success rate)
     return Math.random() > 0.1
   }
 

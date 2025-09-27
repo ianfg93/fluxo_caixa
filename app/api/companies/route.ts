@@ -4,7 +4,6 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
@@ -13,13 +12,12 @@ export async function GET(request: NextRequest) {
     let sql = "SELECT * FROM companies"
     let params: any[] = []
 
-    // Se não for master, só ver sua própria empresa
     if (user.role !== 'master') {
       sql += " WHERE id = $1"
       params.push(user.companyId)
     }
 
-    sql += " ORDER BY created_at DESC" // Ordenar por data de criação (mais recente primeiro)
+    sql += " ORDER BY created_at DESC"
 
     const result = await query(sql, params)
 
@@ -47,27 +45,23 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ companies })
   } catch (error) {
-    console.error("Get companies API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Só master pode criar empresas
     if (!ApiAuthService.hasPermission(user, 'create_company')) {
       return NextResponse.json({ error: "Sem permissão para criar empresas" }, { status: 403 })
     }
 
     const companyData = await request.json()
 
-    // Validar se tem CNPJ ou CPF
     if (!companyData.cnpj && !companyData.cpf) {
       return NextResponse.json({ error: "CNPJ ou CPF é obrigatório" }, { status: 400 })
     }
@@ -95,7 +89,7 @@ export async function POST(request: NextRequest) {
         companyData.maxUsers || 5,
         companyData.maxTransactionsPerMonth || 1000,
         JSON.stringify(companyData.settings || {}),
-        true // active
+        true
       ]
     )
 
@@ -124,7 +118,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ company: newCompany })
   } catch (error) {
-    console.error("Create company API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

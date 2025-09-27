@@ -5,41 +5,34 @@ import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Só master pode criar empresas
     if (!ApiAuthService.hasPermission(user, 'create_company')) {
       return NextResponse.json({ error: "Sem permissão para criar empresas" }, { status: 403 })
     }
 
     const { company: companyData, admin: adminData } = await request.json()
 
-    // Validações da empresa
     if (!companyData.name) {
       return NextResponse.json({ error: "Nome da empresa é obrigatório" }, { status: 400 })
     }
 
-    // Validar se tem CNPJ ou CPF
     if (!companyData.cnpj && !companyData.cpf) {
       return NextResponse.json({ error: "CNPJ ou CPF é obrigatório" }, { status: 400 })
     }
 
-    // Validações do admin
     if (!adminData.name || !adminData.email || !adminData.password) {
       return NextResponse.json({ error: "Dados do administrador são obrigatórios" }, { status: 400 })
     }
 
-    // Validar formato de email
     const emailRegex = /\S+@\S+\.\S+/
     if (!emailRegex.test(adminData.email)) {
       return NextResponse.json({ error: "Email do administrador inválido" }, { status: 400 })
     }
 
-    // Verificar se o email do admin já existe
     const existingUser = await query(
       "SELECT id FROM users WHERE email = $1",
       [adminData.email]
@@ -49,14 +42,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email do administrador já está em uso" }, { status: 400 })
     }
 
-    // Hash da senha
     const hashedPassword = await bcrypt.hash(adminData.password, 10)
 
-    // Iniciar transação
     await query("BEGIN")
 
     try {
-      // Criar empresa
       const companyResult = await query(
         `INSERT INTO companies 
          (name, trade_name, cnpj, cpf, email, phone, address, city, state, zip_code, 
@@ -80,13 +70,12 @@ export async function POST(request: NextRequest) {
           companyData.maxUsers || 5,
           companyData.maxTransactionsPerMonth || 1000,
           JSON.stringify(companyData.settings || {}),
-          true // active
+          true
         ]
       )
 
       const companyRow = companyResult.rows[0]
 
-      // Criar usuário admin
       const adminResult = await query(
         `INSERT INTO users 
          (name, email, password_hash, user_type_id, company_id, active, email_verified) 
@@ -96,19 +85,17 @@ export async function POST(request: NextRequest) {
           adminData.name,
           adminData.email,
           hashedPassword,
-          2, // user_type_id = 2 (administrador)
+          2,
           companyRow.id,
-          true, // active
-          false // email_verified
+          true,
+          false
         ]
       )
 
       const adminRow = adminResult.rows[0]
 
-      // Confirmar transação
       await query("COMMIT")
 
-      // Formatar resposta
       const newCompany = {
         id: companyRow.id,
         name: companyRow.name,
@@ -144,13 +131,11 @@ export async function POST(request: NextRequest) {
       })
 
     } catch (transactionError) {
-      // Desfazer transação em caso de erro
       await query("ROLLBACK")
       throw transactionError
     }
 
   } catch (error) {
-    console.error("Create company with admin API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

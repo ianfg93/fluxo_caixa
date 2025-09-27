@@ -13,7 +13,7 @@ import { AccountsPayableService, type PaymentPriority, type Supplier, type Accou
 import { FileUploader } from "@/components/file-upload/file-uploader"
 
 interface AccountFormProps {
-  account?: AccountPayable // Para edição
+  account?: AccountPayable
   onSuccess: () => void
   onCancel: () => void
 }
@@ -46,7 +46,6 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
         const suppliersData = await AccountsPayableService.getSuppliers()
         setSuppliers(suppliersData)
       } catch (error) {
-        console.error("Erro ao carregar fornecedores:", error)
         setSuppliers([])
       } finally {
         setLoadingSuppliers(false)
@@ -62,7 +61,6 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
     setError(null)
 
     try {
-      // ✅ CORRIGIDO: Usar CreateAccountPayable interface
       const accountData: CreateAccountPayable = {
         supplierName: formData.supplierName,
         supplierDocument: formData.supplierDocument,
@@ -81,11 +79,9 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
 
       let result
       if (account) {
-        // Editando conta existente - usar UpdateAccountPayable
         const updateData: UpdateAccountPayable = accountData
         result = await AccountsPayableService.updateAccountPayable(account.id, updateData)
       } else {
-        // Criando nova conta - usar CreateAccountPayable
         result = await AccountsPayableService.addAccountPayable(accountData)
       }
 
@@ -95,7 +91,6 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
         setError("Erro ao salvar conta. Tente novamente.")
       }
     } catch (error) {
-      console.error("Error saving account payable:", error)
       setError("Erro ao salvar conta. Verifique os dados e tente novamente.")
     } finally {
       setIsLoading(false)
@@ -164,7 +159,6 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
             </div>
           </div>
 
-          {/* Campos adicionais do fornecedor */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="supplierDocument">CNPJ/CPF do Fornecedor</Label>
@@ -270,16 +264,6 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
               rows={3}
             />
           </div>
-
-          {/* Comentar temporariamente até resolver o erro do FileUploader */}
-          {/* <div className="space-y-2">
-            <Label>Anexos (Notas Fiscais, Contratos, etc.)</Label>
-            <FileUploader
-              onFilesUploaded={setUploadedFiles}
-              maxFiles={10}
-              acceptedTypes={["image/*", "application/pdf", ".doc", ".docx", ".xls", ".xlsx"]}
-            />
-          </div> */}
 
           <div className="flex gap-3 pt-4">
             <Button type="submit" disabled={isLoading || loadingSuppliers} className="flex-1">

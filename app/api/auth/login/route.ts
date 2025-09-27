@@ -11,9 +11,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 })
     }
 
-    console.log("🔍 Tentativa de login:", { email })
-
-    // ✅ CORRIGIDO: Buscar usuário e hash separadamente
     const result = await query(`
       SELECT
         u.id,
@@ -38,25 +35,17 @@ export async function POST(request: NextRequest) {
     `, [email])
 
     if (result.rows.length === 0) {
-      console.log("❌ Usuário não encontrado")
       return NextResponse.json({ error: "Email ou senha inválidos" }, { status: 401 })
     }
 
     const userData = result.rows[0]
-    console.log("✅ Usuário encontrado:", userData.email)
-    console.log("🔍 Usuário ativo:", userData.active)
 
-    // ✅ CORRIGIDO: Usar bcrypt para comparar senha
     const isPasswordValid = await bcrypt.compare(password, userData.password_hash)
     
     if (!isPasswordValid) {
-      console.log("❌ Senha inválida")
       return NextResponse.json({ error: "Email ou senha inválidos" }, { status: 401 })
     }
 
-    console.log("✅ Senha válida")
-
-    // Validações de status
     if (!userData.active) {
       return NextResponse.json({
         error: "Usuário desativado. Entre em contato com o administrador."
@@ -75,10 +64,8 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    // Atualizar último login
     await query('UPDATE users SET last_login = NOW() WHERE id = $1', [userData.id])
 
-    // Gerar JWT Token
     const token = jwt.sign(
       {
         userId: userData.id,
@@ -103,10 +90,8 @@ export async function POST(request: NextRequest) {
       createdAt: userData.created_at,
     }
 
-    console.log("✅ Login realizado com sucesso para:", userData.email)
     return NextResponse.json({ user, token })
   } catch (error) {
-    console.error("Login API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

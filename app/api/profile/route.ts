@@ -4,7 +4,6 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function PUT(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
@@ -12,12 +11,10 @@ export async function PUT(request: NextRequest) {
 
     const profileData = await request.json()
 
-    // Validações básicas
     if (!profileData.name || !profileData.name.trim()) {
       return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 })
     }
 
-    // Atualizar perfil do usuário
     const result = await query(
       `UPDATE users SET 
        name = $1,
@@ -43,7 +40,6 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("Update profile API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

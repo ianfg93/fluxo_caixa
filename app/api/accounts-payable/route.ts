@@ -4,13 +4,11 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar permissão
     if (!ApiAuthService.hasPermission(user, 'view_company') && !ApiAuthService.hasPermission(user, 'view_all_companies')) {
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 })
     }
@@ -47,28 +45,22 @@ export async function GET(request: NextRequest) {
     let queryParams: any[] = []
     let whereConditions: string[] = []
 
-    // Aplicar filtro de empresa - SEMPRE aplicar, mesmo para master
     const targetCompanyId = companyFilter || user.companyId
     if (targetCompanyId) {
       whereConditions.push(`ap.company_id = $${queryParams.length + 1}::uuid`)
       queryParams.push(targetCompanyId)
     }
 
-    // Aplicar filtro de status se especificado
     if (status) {
       whereConditions.push(`ap.status = $${queryParams.length + 1}`)
       queryParams.push(status)
     }
 
-    // Montar query final
     let finalQuery = baseQuery
     if (whereConditions.length > 0) {
       finalQuery += ` WHERE ${whereConditions.join(' AND ')}`
     }
     finalQuery += ` ORDER BY ap.due_date ASC, ap.created_at DESC`
-
-    console.log("Query final (accounts-payable):", finalQuery)
-    console.log("Parâmetros:", queryParams)
 
     const result = await query(finalQuery, queryParams)
 
@@ -96,20 +88,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ accounts })
   } catch (error) {
-    console.error("Get accounts payable API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar permissão
     if (!ApiAuthService.hasPermission(user, 'create_entries')) {
       return NextResponse.json({ error: "Sem permissão para criar contas a pagar" }, { status: 403 })
     }
@@ -164,7 +153,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ account: newAccount })
   } catch (error) {
-    console.error("Add account payable API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

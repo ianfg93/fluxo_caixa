@@ -4,7 +4,6 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
@@ -18,7 +17,6 @@ export async function GET(request: NextRequest) {
     const futureDate = new Date()
     futureDate.setDate(today.getDate() + days)
 
-    // Aplicar filtro de empresa - SEMPRE aplicar, mesmo para master
     const targetCompanyId = companyFilter || user.companyId
 
     let sql = `
@@ -30,7 +28,6 @@ export async function GET(request: NextRequest) {
     `
     let params = [today.toISOString(), futureDate.toISOString()]
 
-    // Adicionar filtro de empresa
     if (targetCompanyId) {
       sql += ` AND ap.company_id = $${params.length + 1}::uuid`
       params.push(targetCompanyId)
@@ -60,7 +57,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ accounts })
   } catch (error) {
-    console.error("Get upcoming payments API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

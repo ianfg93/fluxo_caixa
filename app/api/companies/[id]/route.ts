@@ -7,13 +7,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Só master pode ver empresas ou usuário pode ver sua própria empresa
     if (user.role !== 'master' && user.companyId !== params.id) {
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 })
     }
@@ -52,7 +50,6 @@ export async function GET(
 
     return NextResponse.json({ company })
   } catch (error) {
-    console.error("Get company API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
@@ -62,30 +59,25 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Só master pode editar empresas
     if (!ApiAuthService.hasPermission(user, 'create_company')) {
       return NextResponse.json({ error: "Sem permissão para editar empresas" }, { status: 403 })
     }
 
     const companyData = await request.json()
 
-    // Validações básicas
     if (!companyData.name) {
       return NextResponse.json({ error: "Nome da empresa é obrigatório" }, { status: 400 })
     }
 
-    // Validar se tem CNPJ ou CPF
     if (!companyData.cnpj && !companyData.cpf) {
       return NextResponse.json({ error: "CNPJ ou CPF é obrigatório" }, { status: 400 })
     }
 
-    // Verificar se empresa existe
     const existingCompany = await query(
       "SELECT id FROM companies WHERE id = $1",
       [params.id]
@@ -95,7 +87,6 @@ export async function PUT(
       return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 })
     }
 
-    // Atualizar empresa
     const result = await query(
       `UPDATE companies SET 
        name = $1,
@@ -165,7 +156,6 @@ export async function PUT(
     })
 
   } catch (error) {
-    console.error("Update company API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

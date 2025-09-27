@@ -4,7 +4,6 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
@@ -16,15 +15,12 @@ export async function GET(request: NextRequest) {
     let params: any[] = []
     let whereClause = ""
 
-    // Aplicar filtro de empresa - SEMPRE aplicar, mesmo para master
     const targetCompanyId = companyFilter || user.companyId
     if (targetCompanyId) {
       whereClause = "WHERE company_id = $1::uuid"
       params.push(targetCompanyId)
     }
 
-    // Query que calcula status dinamicamente
-    // Contas vencidas aparecem em AMBOS: pendentes (total a pagar) + atrasadas (urgente)
     let sql = `
       SELECT 
         status_type,
@@ -46,7 +42,6 @@ export async function GET(request: NextRequest) {
         
         UNION ALL
         
-        -- Incluir contas vencidas também como pendentes (total a pagar)
         SELECT 
           amount,
           'pending' as status_type
@@ -59,7 +54,6 @@ export async function GET(request: NextRequest) {
 
     const result = await query(sql, params)
 
-    // Inicializar totais com zero
     const totals = {
       pending: { count: 0, amount: 0 },
       paid: { count: 0, amount: 0 },
@@ -68,7 +62,6 @@ export async function GET(request: NextRequest) {
       partially_paid: { count: 0, amount: 0 },
     }
 
-    // Preencher com resultados da query
     result.rows.forEach((row) => {
       const status = row.status_type
       if (totals[status as keyof typeof totals]) {
@@ -81,7 +74,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ totals })
   } catch (error) {
-    console.error("Get totals by status API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

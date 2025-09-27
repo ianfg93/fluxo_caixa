@@ -7,18 +7,15 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Só master pode alterar status de empresas
     if (!ApiAuthService.hasPermission(user, 'create_company')) {
       return NextResponse.json({ error: "Sem permissão para alterar status de empresas" }, { status: 403 })
     }
 
-    // Verificar se empresa existe e obter status atual
     const existingCompany = await query(
       "SELECT id, active, name FROM companies WHERE id = $1",
       [params.id]
@@ -32,7 +29,6 @@ export async function PATCH(
     const newStatus = !currentStatus
     const companyName = existingCompany.rows[0].name
 
-    // Atualizar status
     const result = await query(
       `UPDATE companies SET 
        active = $1,
@@ -49,7 +45,6 @@ export async function PATCH(
     })
 
   } catch (error) {
-    console.error("Toggle company status API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

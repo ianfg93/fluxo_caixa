@@ -17,7 +17,6 @@ export async function GET() {
 
     return NextResponse.json({ suppliers })
   } catch (error) {
-    console.error("Get suppliers API error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -44,7 +43,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ supplier: newSupplier })
   } catch (error) {
-    console.error("Add supplier API error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

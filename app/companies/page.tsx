@@ -20,7 +20,6 @@ export default function CompaniesPage() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
 
-  // Verificar permissão - só master pode acessar
   if (!hasPermission('master')) {
     return (
       <AuthenticatedLayout>
@@ -35,7 +34,6 @@ export default function CompaniesPage() {
     )
   }
 
-  // Filtrar empresas por nome
   const filteredCompanies = useMemo(() => {
     if (!searchTerm.trim()) return companies
 
@@ -57,7 +55,7 @@ export default function CompaniesPage() {
   const handleToggleStatus = async (company: Company) => {
     const success = await CompaniesService.toggleCompanyStatus(company.id)
     if (success) {
-      await loadCompanies() // Recarregar lista
+      await loadCompanies()
     }
   }
 
@@ -101,7 +99,6 @@ export default function CompaniesPage() {
   return (
     <AuthenticatedLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Empresas</h1>
@@ -112,7 +109,6 @@ export default function CompaniesPage() {
           <CreateCompanyModal onCompanyCreated={loadCompanies} />
         </div>
 
-        {/* Filtro de busca */}
         <div className="flex items-center space-x-2 max-w-sm">
           <Input
             placeholder="Buscar por nome, CNPJ ou CPF..."
@@ -122,7 +118,6 @@ export default function CompaniesPage() {
           />
         </div>
 
-        {/* Stats */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -162,7 +157,6 @@ export default function CompaniesPage() {
           </Card>
         </div>
 
-        {/* Companies Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredCompanies.map((company) => (
             <Card key={company.id} className={company.active ? "" : "opacity-60"}>
@@ -268,7 +262,6 @@ export default function CompaniesPage() {
           </Card>
         )}
 
-        {/* Modal de Edição */}
         {editingCompany && (
           <EditCompanyModal
             company={editingCompany}

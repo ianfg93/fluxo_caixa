@@ -18,7 +18,6 @@ export interface FileAttachment {
   createdAt: Date
 }
 
-// Mock uploaded files
 const mockFiles: UploadedFile[] = [
   {
     id: "1",
@@ -54,10 +53,7 @@ const mockAttachments: FileAttachment[] = [
 
 export class FileUploadService {
   static async uploadFile(file: File, uploadedBy: string): Promise<UploadedFile> {
-    // Mock file upload - in production, this would upload to a cloud storage service
-    console.log("[v0] Uploading file:", file.name)
 
-    // Simulate upload delay
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
     const uploadedFile: UploadedFile = {

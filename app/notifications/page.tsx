@@ -19,7 +19,7 @@ export default function NotificationsPage() {
     }
 
     loadNotifications()
-    const interval = setInterval(loadNotifications, 30000) // Refresh every 30 seconds
+    const interval = setInterval(loadNotifications, 30000)
 
     return () => clearInterval(interval)
   }, [])
@@ -60,7 +60,7 @@ export default function NotificationsPage() {
     }
   }
 
-  if (!hasPermission("manager")) {
+  if (!hasPermission("administrator")) {
     return (
       <div className="p-6">
         <Card>

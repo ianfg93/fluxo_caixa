@@ -50,7 +50,7 @@ export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentMod
       })
       onClose()
     } catch (error) {
-      console.error("Erro ao processar pagamento:", error)
+      
     } finally {
       setIsLoading(false)
     }

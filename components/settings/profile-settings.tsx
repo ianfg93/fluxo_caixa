@@ -186,15 +186,6 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                 O email não pode ser alterado
               </p>
             </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Nível de Acesso</Label>
-              <div>
-                <Badge className={getRoleBadgeColor(user.role)}>
-                  {getRoleLabel(user.role)}
-                </Badge>
-              </div>
-            </div>
           </div>
 
           {(user.companyName ?? null) && (

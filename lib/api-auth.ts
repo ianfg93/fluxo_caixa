@@ -25,7 +25,6 @@ export class ApiAuthService {
       const token = authHeader.substring(7)
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'seu_jwt_secret_aqui') as any
 
-      // Buscar dados atualizados do usuário
       const result = await query(`
         SELECT 
           u.id,
@@ -50,7 +49,6 @@ export class ApiAuthService {
 
       const userData = result.rows[0]
 
-      // Verificar se empresa ainda está ativa (se não for master)
       if (userData.user_type !== 'master' && !userData.company_active) {
         return null
       }
@@ -73,7 +71,6 @@ export class ApiAuthService {
   }
 
   static hasPermission(user: ApiUser, action: string): boolean {
-    // Master tem todas as permissões
     if (user.role === 'master') {
       return true
     }
@@ -90,12 +87,10 @@ export class ApiAuthService {
   }
 
   static addCompanyFilter(baseQuery: string, user: ApiUser, companyParam?: string): { query: string, params: string[] } {
-    // Master pode ver tudo se não especificar empresa
     if (user.role === 'master' && !companyParam) {
       return { query: baseQuery, params: [] }
     }
 
-    // Se master especificou empresa, filtrar por ela
     const targetCompanyId = companyParam || user.companyId
     
     if (!targetCompanyId) {

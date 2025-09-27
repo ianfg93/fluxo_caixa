@@ -23,7 +23,6 @@ export function AccountsList() {
     try {
       setLoading(true)
       const data = await AccountsPayableService.getAccountsPayable()
-      // Update overdue status
       const updatedData = data.map((account) => {
         if (account.status === "pending" && new Date(account.dueDate) < new Date()) {
           return { ...account, status: "overdue" as PaymentStatus }
@@ -32,7 +31,6 @@ export function AccountsList() {
       })
       setAccounts(updatedData)
     } catch (error) {
-      console.error("Erro ao carregar contas:", error)
       setAccounts([])
     } finally {
       setLoading(false)

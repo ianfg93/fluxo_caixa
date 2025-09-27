@@ -4,13 +4,11 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar permissão para editar
     const canEditAll = ApiAuthService.hasPermission(user, 'edit_all')
     const canEditOwn = ApiAuthService.hasPermission(user, 'edit_own')
     
@@ -21,7 +19,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const updates = await request.json()
     const { id } = params
 
-    // Verificar se a conta existe e pertence à empresa do usuário
     let checkQuery = `
       SELECT id, created_by, company_id 
       FROM accounts_payable 
@@ -29,7 +26,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     `
     let checkParams = [id]
 
-    // Se não for master, filtrar por empresa
     if (user.role !== 'master') {
       checkQuery += ` AND company_id = $2`
       checkParams.push(user.companyId!)
@@ -43,12 +39,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const account = checkResult.rows[0]
 
-    // Se só pode editar próprios registros, verificar se é o criador
     if (!canEditAll && canEditOwn && account.created_by !== user.id) {
       return NextResponse.json({ error: "Sem permissão para editar esta conta" }, { status: 403 })
     }
 
-    // Atualizar a conta
     const result = await query(
       `UPDATE accounts_payable 
        SET supplier_name = $1, supplier_document = $2, supplier_email = $3, 
@@ -97,20 +91,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json({ account: updatedAccount })
   } catch (error) {
-    console.error("Update account payable API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar permissão para deletar (apenas master e administrator)
     const canDelete = ApiAuthService.hasPermission(user, 'delete_records') || ApiAuthService.hasPermission(user, 'delete_all')
     
     if (!canDelete) {
@@ -119,7 +110,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     const { id } = params
 
-    // Verificar se a conta existe e pertence à empresa do usuário
     let checkQuery = `
       SELECT id, company_id 
       FROM accounts_payable 
@@ -127,7 +117,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     `
     let checkParams = [id]
 
-    // Se não for master, filtrar por empresa
     if (user.role !== 'master') {
       checkQuery += ` AND company_id = $2`
       checkParams.push(user.companyId!)
@@ -139,7 +128,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Conta não encontrada" }, { status: 404 })
     }
 
-    // Deletar a conta
     const result = await query(
       "DELETE FROM accounts_payable WHERE id = $1 RETURNING id",
       [id]
@@ -147,7 +135,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     return NextResponse.json({ success: true, deletedId: result.rows[0].id })
   } catch (error) {
-    console.error("Delete account payable API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

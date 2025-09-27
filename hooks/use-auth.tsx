@@ -92,5 +92,4 @@ export function useAuth() {
   return context
 }
 
-// Export do tipo User para usar em outros componentes
 export type { User } from "@/lib/auth"

@@ -17,9 +17,9 @@ export interface AccountPayable {
   id: string
   supplierId: string
   supplierName: string
-  supplierDocument?: string  // ✅ ADICIONAR
-  supplierEmail?: string     // ✅ ADICIONAR
-  supplierPhone?: string     // ✅ ADICIONAR
+  supplierDocument?: string
+  supplierEmail?: string
+  supplierPhone?: string
   description: string
   amount: number
   dueDate: Date
@@ -35,7 +35,6 @@ export interface AccountPayable {
   createdAt: Date
 }
 
-// ✅ Interface para criação de conta (campos que o formulário envia)
 export interface CreateAccountPayable {
   supplierName: string
   supplierDocument?: string
@@ -52,7 +51,6 @@ export interface CreateAccountPayable {
   notes?: string
 }
 
-// ✅ Interface para atualização de conta
 export interface UpdateAccountPayable {
   supplierName?: string
   supplierDocument?: string
@@ -71,26 +69,18 @@ export interface UpdateAccountPayable {
 
 export class AccountsPayableService {
   static async getAccountsPayable(status?: PaymentStatus): Promise<AccountPayable[]> {
-    console.log('🔍 getAccountsPayable chamado com status:', status)
-    
     try {
       const url = status ? `/api/accounts-payable?status=${status}` : "/api/accounts-payable"
-      console.log('🔍 Fazendo fetch para:', url)
       
       const response = await ApiClient.get(url)
-      console.log('🔍 Response status:', response.status)
-      console.log('🔍 Response ok:', response.ok)
 
       if (!response.ok) {
-        console.error(`API Error: ${response.status} - ${response.statusText}`)
         return []
       }
 
       const data = await response.json()
-      console.log('🔍 Data recebida:', data)
       
       if (!data || !data.accounts || !Array.isArray(data.accounts)) {
-        console.error('❌ API retornou dados inválidos:', data)
         return []
       }
 
@@ -102,10 +92,8 @@ export class AccountsPayableService {
         createdAt: new Date(account.createdAt),
       }))
       
-      console.log('🔍 Resultado final:', result)
       return result
     } catch (error) {
-      console.error("❌ Get accounts payable error:", error)
       return []
     }
   }
@@ -124,12 +112,10 @@ export class AccountsPayableService {
         createdAt: new Date(supplier.createdAt),
       }))
     } catch (error) {
-      console.error("Get suppliers error:", error)
       return []
     }
   }
 
-  // ✅ CORRIGIDO: Usar CreateAccountPayable interface
   static async addAccountPayable(
     account: CreateAccountPayable,
   ): Promise<AccountPayable | null> {
@@ -149,7 +135,6 @@ export class AccountsPayableService {
         createdAt: new Date(data.account.createdAt),
       }
     } catch (error) {
-      console.error("Add account payable error:", error)
       return null
     }
   }
@@ -168,12 +153,10 @@ export class AccountsPayableService {
         createdAt: new Date(data.supplier.createdAt),
       }
     } catch (error) {
-      console.error("Add supplier error:", error)
       return null
     }
   }
 
-  // ✅ CORRIGIDO: Usar UpdateAccountPayable interface
   static async updateAccountPayable(id: string, updates: UpdateAccountPayable): Promise<AccountPayable | null> {
     try {
       const response = await ApiClient.put(`/api/accounts-payable/${id}`, updates)
@@ -191,7 +174,6 @@ export class AccountsPayableService {
         createdAt: new Date(data.account.createdAt),
       }
     } catch (error) {
-      console.error("Update account payable error:", error)
       return null
     }
   }
@@ -213,7 +195,6 @@ export class AccountsPayableService {
         createdAt: new Date(data.account.createdAt),
       }
     } catch (error) {
-      console.error("Mark as paid error:", error)
       return null
     }
   }
@@ -235,7 +216,6 @@ export class AccountsPayableService {
         createdAt: new Date(account.createdAt),
       }))
     } catch (error) {
-      console.error("Get overdue accounts error:", error)
       return []
     }
   }
@@ -263,7 +243,6 @@ export class AccountsPayableService {
         createdAt: new Date(account.createdAt),
       }))
     } catch (error) {
-      console.error("Get upcoming payments error:", error)
       return []
     }
   }
@@ -293,7 +272,6 @@ export class AccountsPayableService {
       const data = await response.json()
       return data.totals
     } catch (error) {
-      console.error("Get totals by status error:", error)
       return totals
     }
   }
@@ -303,7 +281,6 @@ export class AccountsPayableService {
       const response = await ApiClient.delete(`/api/accounts-payable/${id}`)
       return response.ok
     } catch (error) {
-      console.error("Delete account error:", error)
       return false
     }
   }

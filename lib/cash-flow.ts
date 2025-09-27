@@ -5,13 +5,13 @@ export type TransactionCategory =
   | "vendas"
   | "servicos"
   | "investimentos"
-  | "emprestimos" // Entries
+  | "emprestimos"
   | "fornecedores"
   | "salarios"
   | "aluguel"
   | "impostos"
   | "marketing"
-  | "outros" // Exits
+  | "outros"
 
 export interface CashFlowTransaction {
   id: string
@@ -62,7 +62,6 @@ export class CashFlowService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient e remover createdBy dos parâmetros
   static async addTransaction(
     transaction: Omit<CashFlowTransaction, "id" | "createdAt" | "createdBy">,
   ): Promise<CashFlowTransaction | null> {
@@ -85,7 +84,6 @@ export class CashFlowService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
   static async updateTransaction(
     id: string,
     updates: Partial<CashFlowTransaction>,
@@ -109,7 +107,6 @@ export class CashFlowService {
     }
   }
 
-  // ✅ CORRIGIDO: Usar ApiClient
   static async deleteTransaction(id: string): Promise<boolean> {
     try {
       const response = await ApiClient.delete(`/api/cash-flow/${id}`)

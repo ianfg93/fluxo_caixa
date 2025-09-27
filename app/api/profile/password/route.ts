@@ -5,7 +5,6 @@ import bcrypt from 'bcryptjs'
 
 export async function PUT(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
@@ -13,7 +12,6 @@ export async function PUT(request: NextRequest) {
 
     const { currentPassword, newPassword } = await request.json()
 
-    // Validações básicas
     if (!currentPassword) {
       return NextResponse.json({ error: "Senha atual é obrigatória" }, { status: 400 })
     }
@@ -26,7 +24,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Nova senha deve ter pelo menos 6 caracteres" }, { status: 400 })
     }
 
-    // Buscar senha atual do usuário
     const userResult = await query(
       "SELECT id, password_hash FROM users WHERE id = $1",
       [user.id]
@@ -38,16 +35,13 @@ export async function PUT(request: NextRequest) {
 
     const userData = userResult.rows[0]
 
-    // Verificar senha atual
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, userData.password_hash)
     if (!isCurrentPasswordValid) {
       return NextResponse.json({ error: "Senha atual incorreta" }, { status: 400 })
     }
 
-    // Hash da nova senha
     const hashedNewPassword = await bcrypt.hash(newPassword, 10)
 
-    // Atualizar senha
     await query(
       `UPDATE users SET 
        password_hash = $1,
@@ -61,7 +55,6 @@ export async function PUT(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("Change password API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

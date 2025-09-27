@@ -28,13 +28,12 @@ export default function AccountsPayablePage() {
       const data = await AccountsPayableService.getAccountsPayable()
       setAccounts(data)
     } catch (error) {
-      console.error("Erro ao carregar contas a pagar:", error)
+      
     } finally {
       setLoading(false)
     }
   }
 
-  // Filtrar contas quando os dados ou filtro mudam
   useEffect(() => {
     let filtered = accounts
 
@@ -65,7 +64,6 @@ export default function AccountsPayablePage() {
     setPaymentAccount(null)
   }
 
-  // ✅ CORRIGIDO: Verificar permissões baseadas nos roles reais
   const canEdit = () => {
     if (!authState.user) return false
     const role = authState.user.role
@@ -104,13 +102,11 @@ export default function AccountsPayablePage() {
           alert("Erro ao excluir conta. Tente novamente.")
         }
       } catch (error) {
-        console.error("Erro ao excluir:", error)
         alert("Erro ao excluir conta. Tente novamente.")
       }
     }
   }
 
-  // ✅ ADICIONADO: Função para editar conta
   const handleEdit = (account: AccountPayable) => {
     if (!canEdit()) {
       alert("Você não tem permissão para editar contas.")
@@ -119,7 +115,6 @@ export default function AccountsPayablePage() {
     setEditingAccount(account)
   }
 
-  // ✅ ADICIONADO: Função para abrir modal de pagamento
   const handleMarkAsPaid = (account: AccountPayable) => {
     if (!canEdit()) {
       alert("Você não tem permissão para marcar contas como pagas.")
@@ -128,7 +123,6 @@ export default function AccountsPayablePage() {
     setPaymentAccount(account)
   }
 
-  // ✅ ADICIONADO: Função para processar o pagamento
   const handlePaymentConfirm = async (paymentData: {
     paidAmount: number
     paidDate: Date
@@ -150,7 +144,6 @@ export default function AccountsPayablePage() {
         alert("Erro ao marcar conta como paga. Tente novamente.")
       }
     } catch (error) {
-      console.error("Erro ao processar pagamento:", error)
       alert("Erro ao processar pagamento. Tente novamente.")
     }
   }
@@ -216,7 +209,6 @@ export default function AccountsPayablePage() {
     return filteredAccounts.length
   }
 
-  // ✅ CORRIGIDO: Verificação de permissão correta
   if (!canView()) {
     return (
       <AuthenticatedLayout>
@@ -231,7 +223,6 @@ export default function AccountsPayablePage() {
     )
   }
 
-  // ✅ ADICIONADO: Mostrar formulário de edição
   if (editingAccount) {
     return (
       <AuthenticatedLayout>
@@ -244,7 +235,6 @@ export default function AccountsPayablePage() {
     )
   }
 
-  // Mostrar formulário de nova conta
   if (showForm) {
     return (
       <AuthenticatedLayout>
@@ -272,7 +262,6 @@ export default function AccountsPayablePage() {
           </Button>
         </div>
 
-        {/* Filtros de Data e Resumo lado a lado */}
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 lg:flex-[2]">
             <DateFilter 
@@ -354,10 +343,8 @@ export default function AccountsPayablePage() {
                             {formatCurrency(account.amount)}
                           </p>
                         </div>
-                        {/* ✅ CORRIGIDO: Mostrar botões baseados nas permissões corretas */}
                         {(canEdit() || canDelete()) && (
                           <div className="flex gap-2">
-                            {/* ✅ ADICIONADO: Botão "Marcar como Pago" para contas pendentes */}
                             {canEdit() && account.status === 'pending' && (
                               <Button 
                                 size="sm" 

@@ -12,10 +12,8 @@ export interface ChangePasswordData {
 export class ProfileService {
   static async updateProfile(data: UpdateProfileData): Promise<any> {
   try {
-    console.log('ProfileService - Enviando dados:', data)
     const response = await ApiClient.put("/api/profile", data)
 
-    console.log('ProfileService - Status da resposta:', response.status)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
@@ -24,8 +22,6 @@ export class ProfileService {
     }
 
     const result = await response.json()
-    console.log('ProfileService - Resposta completa:', result)
-    console.log('ProfileService - Retornando:', result.user || true)
     return result.user || true
   } catch (error) {
     console.error("ProfileService - Erro:", error)

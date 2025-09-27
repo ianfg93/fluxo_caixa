@@ -25,7 +25,6 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
-  // Estados específicos para Master
   const [availableCompanies, setAvailableCompanies] = useState<any[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>("")
 
@@ -41,17 +40,12 @@ export default function DashboardPage() {
 
   async function loadAvailableCompanies() {
     try {
-      // TODO: Implementar API para buscar empresas
-      // const companies = await CompaniesService.getCompanies()
-      // setAvailableCompanies(companies)
-      
-      // Mock temporário
       setAvailableCompanies([
         { id: 'all', name: 'Todas as Empresas' },
         { id: 'empresa-exemplo', name: 'Empresa Exemplo Ltda' }
       ])
     } catch (error) {
-      console.error("Erro ao carregar empresas:", error)
+      
     }
   }
 
@@ -75,7 +69,7 @@ export default function DashboardPage() {
     setExitCategories(exitCategoryData)
     setRecentTransactions(transactions.slice(0, 5))
   } catch (error) {
-    console.error("Error loading dashboard data:", error)
+    
   } finally {
     setLoading(false)
   }
@@ -113,32 +107,8 @@ export default function DashboardPage() {
             {selectedCompany && selectedCompany !== 'all' && ` - ${availableCompanies.find(c => c.id === selectedCompany)?.name}`}
           </p>
         </div>
-        
-        <div className="flex gap-2">
-          {/* Filtro de empresa para Master */}
-          {isMaster && (
-            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-              <SelectTrigger className="w-[250px]">
-                <SelectValue placeholder="Selecionar empresa..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCompanies.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Botão para criar empresa (só Master) */}
-          {isMaster && (
-            <CreateCompanyModal onCompanyCreated={loadAvailableCompanies} />
-          )}
-        </div>
       </div>
 
-      {/* Resto do código existente... */}
       {!metrics ? (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
@@ -152,19 +122,17 @@ export default function DashboardPage() {
           <Tabs defaultValue="overview" className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="cash-flow">Fluxo de Caixa</TabsTrigger>
+              {/* <TabsTrigger value="cash-flow">Fluxo de Caixa</TabsTrigger>
               <TabsTrigger value="categories">Categorias</TabsTrigger>
-              <TabsTrigger value="alerts">Alertas</TabsTrigger>
+              <TabsTrigger value="alerts">Alertas</TabsTrigger> */}
             </TabsList>
 
-            {/* Resto das tabs existentes... */}
             <TabsContent value="overview" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <CashFlowChart data={monthlyData} />
                 <AlertsPanel />
               </div>
 
-              {/* Recent Transactions */}
               <Card>
                 <CardHeader>
                   <CardTitle>Transações Recentes</CardTitle>
@@ -201,7 +169,6 @@ export default function DashboardPage() {
               </Card>
             </TabsContent>
 
-            {/* Outras tabs... */}
           </Tabs>
         </>
       )}

@@ -1,6 +1,5 @@
 import { Client, Pool } from "pg"
 
-// Usar Pool ao invés de Client único
 let pool: Pool | null = null
 
 export function getDbConfig() {
@@ -10,7 +9,7 @@ export function getDbConfig() {
     user: process.env.DB_USERNAME || 'sete_user',
     password: process.env.DB_PASSWORD,
     port: Number.parseInt(process.env.DB_PORT || "5432"),
-    max: 10, // máximo de 10 conexões
+    max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
   }
@@ -20,7 +19,6 @@ export async function getDbPool() {
   if (!pool) {
     pool = new Pool(getDbConfig())
     
-    // Event listeners para debug
     pool.on('error', (err) => {
       console.error('Database pool error:', err)
     })
@@ -42,12 +40,10 @@ export async function query(text: string, params?: any[]) {
     console.error('Query:', text)
     console.error('Params:', params)
     
-    // Re-throw para que a API possa tratar o erro
     throw error
   }
 }
 
-// Função para testar a conexão
 export async function testConnection() {
   try {
     const result = await query('SELECT NOW()')
@@ -59,7 +55,6 @@ export async function testConnection() {
   }
 }
 
-// Graceful shutdown
 export async function closePool() {
   if (pool) {
     await pool.end()

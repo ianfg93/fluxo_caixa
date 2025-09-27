@@ -4,13 +4,11 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function GET(request: NextRequest) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar permissão
     if (!ApiAuthService.hasPermission(user, 'view_company') && !ApiAuthService.hasPermission(user, 'view_all_companies')) {
       return NextResponse.json({ error: "Sem permissão" }, { status: 403 })
     }
@@ -18,7 +16,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const companyFilter = searchParams.get("company")
 
-    // Aplicar filtro de empresa - SEMPRE aplicar, mesmo para master
     const targetCompanyId = companyFilter || user.companyId
 
     let baseQuery = `
@@ -47,7 +44,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("Get balance API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

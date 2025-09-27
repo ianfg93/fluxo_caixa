@@ -42,7 +42,6 @@ export class AuthService {
         createdAt: new Date(data.user.createdAt),
       }
 
-      // Salvar tanto o user quanto o token
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(user))
       localStorage.setItem(this.TOKEN_KEY, data.token)
       
@@ -90,7 +89,6 @@ export class AuthService {
     return roleHierarchy[userRole] >= roleHierarchy[requiredRole]
   }
 
-  // Novos métodos helpers
   static isMaster(user: User): boolean {
     return user.role === 'master'
   }

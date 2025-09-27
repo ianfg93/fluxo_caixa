@@ -4,13 +4,11 @@ import { ApiAuthService } from "@/lib/api-auth"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar permissão para marcar como pago
     const canEditAll = ApiAuthService.hasPermission(user, 'edit_all')
     const canEditOwn = ApiAuthService.hasPermission(user, 'edit_own')
     
@@ -21,7 +19,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const { paidAmount, paidDate } = await request.json()
     const { id } = params
 
-    // Verificar se a conta existe e pertence à empresa do usuário
     let checkQuery = `
       SELECT id, amount, status, company_id, created_by
       FROM accounts_payable 
@@ -29,7 +26,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     `
     let checkParams = [id]
 
-    // Se não for master, filtrar por empresa
     if (user.role !== 'master') {
       checkQuery += ` AND company_id = $2`
       checkParams.push(user.companyId!)
@@ -43,17 +39,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const account = checkResult.rows[0]
 
-    // Verificar se pode marcar como pago
     if (!canEditAll && canEditOwn && account.created_by !== user.id) {
       return NextResponse.json({ error: "Sem permissão para marcar esta conta como paga" }, { status: 403 })
     }
 
-    // Verificar se a conta já foi paga
     if (account.status === 'paid') {
       return NextResponse.json({ error: "Esta conta já está marcada como paga" }, { status: 400 })
     }
 
-    // Determinar o status baseado no valor pago
     const originalAmount = Number.parseFloat(account.amount)
     const paidAmountNum = Number.parseFloat(paidAmount)
     
@@ -62,7 +55,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       newStatus = 'partially_paid'
     }
 
-    // Atualizar a conta como paga
     const result = await query(
       `UPDATE accounts_payable 
        SET status = $1, 
@@ -99,7 +91,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     return NextResponse.json({ account: updatedAccount })
   } catch (error) {
-    console.error("Mark as paid API error:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
