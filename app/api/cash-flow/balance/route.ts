@@ -1,14 +1,40 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
+import { ApiAuthService } from "@/lib/api-auth"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const result = await query(`
+    // Autenticar usuário
+    const user = await ApiAuthService.authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
+    }
+
+    // Verificar permissão
+    if (!ApiAuthService.hasPermission(user, 'view_company') && !ApiAuthService.hasPermission(user, 'view_all_companies')) {
+      return NextResponse.json({ error: "Sem permissão" }, { status: 403 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const companyFilter = searchParams.get("company")
+
+    // Aplicar filtro de empresa - SEMPRE aplicar, mesmo para master
+    const targetCompanyId = companyFilter || user.companyId
+
+    let baseQuery = `
       SELECT 
         SUM(CASE WHEN type = 'entry' THEN amount ELSE 0 END) as entries,
         SUM(CASE WHEN type = 'exit' THEN amount ELSE 0 END) as exits
       FROM cash_flow_transactions
-    `)
+    `
+
+    let result
+    if (targetCompanyId) {
+      baseQuery += ` WHERE company_id = $1::uuid`
+      result = await query(baseQuery, [targetCompanyId])
+    } else {
+      result = await query(baseQuery)
+    }
 
     const entries = Number.parseFloat(result.rows[0].entries) || 0
     const exits = Number.parseFloat(result.rows[0].exits) || 0
@@ -22,6 +48,6 @@ export async function GET() {
     })
   } catch (error) {
     console.error("Get balance API error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

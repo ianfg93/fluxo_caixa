@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
     const futureDate = new Date()
     futureDate.setDate(today.getDate() + days)
 
+    // Aplicar filtro de empresa - SEMPRE aplicar, mesmo para master
+    const targetCompanyId = companyFilter || user.companyId
+
     let sql = `
       SELECT ap.*
       FROM accounts_payable ap
@@ -27,13 +30,9 @@ export async function GET(request: NextRequest) {
     `
     let params = [today.toISOString(), futureDate.toISOString()]
 
-    // Aplicar filtro de empresa
-    if (user.role !== 'master' || companyFilter) {
-      const targetCompanyId = companyFilter ?? user.companyId
-      if (!targetCompanyId) {
-        return NextResponse.json({ error: "Empresa não especificada" }, { status: 400 })
-      }
-      sql += ` AND ap.company_id = $${params.length + 1}`
+    // Adicionar filtro de empresa
+    if (targetCompanyId) {
+      sql += ` AND ap.company_id = $${params.length + 1}::uuid`
       params.push(targetCompanyId)
     }
 

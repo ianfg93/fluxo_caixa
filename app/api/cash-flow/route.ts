@@ -17,41 +17,53 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
-    const companyFilter = searchParams.get("company") // Para master filtrar por empresa
+    const companyFilter = searchParams.get("company")
 
     let baseQuery = `
       SELECT 
-        cft.*,
+        cft.id,
+        cft.type,
+        cft.description,
+        cft.amount,
+        cft.category,
+        cft.transaction_date,
+        cft.notes,
+        cft.created_by,
+        cft.created_at,
         u.name as created_by_name
       FROM cash_flow_transactions cft
       LEFT JOIN users u ON cft.created_by = u.id
     `
 
-    // Aplicar filtro de empresa
-    const { query: filteredQuery, params: companyParams } = ApiAuthService.addCompanyFilter(
-      baseQuery, 
-      user, 
-      companyFilter ?? undefined
-    )
+    let queryParams: any[] = []
+    let whereConditions: string[] = []
 
-    let finalQuery = filteredQuery
-    let queryParams = [...companyParams]
+    // Aplicar filtro de empresa
+    const targetCompanyId = companyFilter || user.companyId
+    if (targetCompanyId) {
+      whereConditions.push(`cft.company_id = $${queryParams.length + 1}::uuid`)
+      queryParams.push(targetCompanyId)
+    }
 
     // Aplicar filtro de tipo se especificado
     if (type) {
-      const whereClause = finalQuery.includes('WHERE') ? 'AND' : 'WHERE'
-      finalQuery += ` ${whereClause} cft.type = $${queryParams.length + 1}`
+      whereConditions.push(`cft.type = $${queryParams.length + 1}::varchar`)
       queryParams.push(type)
     }
 
+    // Montar query final
+    let finalQuery = baseQuery
+    if (whereConditions.length > 0) {
+      finalQuery += ` WHERE ${whereConditions.join(' AND ')}`
+    }
     finalQuery += ` ORDER BY cft.transaction_date DESC, cft.created_at DESC`
 
-    // ✅ CORRIGIDO: Substituir placeholder corretamente
-    if (companyParams.length > 0) {
-      finalQuery = finalQuery.replace('$COMPANY_FILTER$', `$1`)
-    }
+    console.log("Query final:", finalQuery)
+    console.log("Parâmetros:", queryParams)
 
     const result = await query(finalQuery, queryParams)
+    
+    console.log("Resultado da query:", result.rows.length, "registros")
 
     const transactions = result.rows.map((row) => ({
       id: row.id,
@@ -62,7 +74,6 @@ export async function GET(request: NextRequest) {
       date: row.transaction_date,
       createdBy: row.created_by_name || 'Usuário não encontrado',
       createdAt: row.created_at,
-      attachments: row.attachments ? JSON.parse(row.attachments) : undefined,
       notes: row.notes,
     }))
 
@@ -74,7 +85,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  console.log("🚀 POST /api/cash-flow chamado")
+  console.log("POST /api/cash-flow chamado")
   
   try {
     // Autenticar usuário
@@ -89,9 +100,8 @@ export async function POST(request: NextRequest) {
     }
 
     const transaction = await request.json()
-    console.log("📝 Dados recebidos:", transaction)
+    console.log("Dados recebidos:", transaction)
 
-    // ✅ CORRIGIDO: Remover colunas que não existem na tabela
     const result = await query(
       `INSERT INTO cash_flow_transactions 
        (company_id, type, description, amount, category, transaction_date, created_by, notes) 
@@ -122,7 +132,7 @@ export async function POST(request: NextRequest) {
       notes: row.notes,
     }
 
-    console.log("✅ Transação criada:", newTransaction)
+    console.log("Transação criada:", newTransaction)
     return NextResponse.json({ transaction: newTransaction })
   } catch (error) {
     console.error("Add transaction API error:", error)

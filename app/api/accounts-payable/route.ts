@@ -17,39 +17,58 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
-    const companyFilter = searchParams.get("company") // Para master filtrar por empresa
+    const companyFilter = searchParams.get("company")
 
-    let baseQuery = `
+    const baseQuery = `
       SELECT 
-        ap.*,
+        ap.id,
+        ap.supplier_name,
+        ap.supplier_document,
+        ap.supplier_email,
+        ap.supplier_phone,
+        ap.description,
+        ap.amount,
+        ap.due_date,
+        ap.issue_date,
+        ap.status,
+        ap.priority,
+        ap.category,
+        ap.invoice_number,
+        ap.notes,
+        ap.payment_date,
+        ap.payment_amount,
+        ap.created_by,
+        ap.created_at,
         u.name as created_by_name
       FROM accounts_payable ap
       LEFT JOIN users u ON ap.created_by = u.id
     `
 
-    // Aplicar filtro de empresa
-    const { query: filteredQuery, params: companyParams } = ApiAuthService.addCompanyFilter(
-      baseQuery, 
-      user, 
-      companyFilter ?? undefined
-    )
+    let queryParams: any[] = []
+    let whereConditions: string[] = []
 
-    let finalQuery = filteredQuery
-    let queryParams = [...companyParams]
+    // Aplicar filtro de empresa - SEMPRE aplicar, mesmo para master
+    const targetCompanyId = companyFilter || user.companyId
+    if (targetCompanyId) {
+      whereConditions.push(`ap.company_id = $${queryParams.length + 1}::uuid`)
+      queryParams.push(targetCompanyId)
+    }
 
     // Aplicar filtro de status se especificado
     if (status) {
-      const whereClause = finalQuery.includes('WHERE') ? 'AND' : 'WHERE'
-      finalQuery += ` ${whereClause} ap.status = $${queryParams.length + 1}`
+      whereConditions.push(`ap.status = $${queryParams.length + 1}`)
       queryParams.push(status)
     }
 
+    // Montar query final
+    let finalQuery = baseQuery
+    if (whereConditions.length > 0) {
+      finalQuery += ` WHERE ${whereConditions.join(' AND ')}`
+    }
     finalQuery += ` ORDER BY ap.due_date ASC, ap.created_at DESC`
 
-    // Substituir placeholder corretamente
-    if (companyParams.length > 0) {
-      finalQuery = finalQuery.replace('$COMPANY_FILTER$', `$1`)
-    }
+    console.log("Query final (accounts-payable):", finalQuery)
+    console.log("Parâmetros:", queryParams)
 
     const result = await query(finalQuery, queryParams)
 
@@ -57,9 +76,9 @@ export async function GET(request: NextRequest) {
       id: row.id,
       supplierId: row.supplier_id || row.id,
       supplierName: row.supplier_name,
-      supplierDocument: row.supplier_document, // ✅ ADICIONAR
-      supplierEmail: row.supplier_email,       // ✅ ADICIONAR
-      supplierPhone: row.supplier_phone,       // ✅ ADICIONAR
+      supplierDocument: row.supplier_document,
+      supplierEmail: row.supplier_email,
+      supplierPhone: row.supplier_phone,
       description: row.description,
       amount: Number.parseFloat(row.amount),
       dueDate: row.due_date,
@@ -105,7 +124,7 @@ export async function POST(request: NextRequest) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
-        user.companyId, // Usar company_id do usuário autenticado
+        user.companyId,
         account.supplierName,
         account.supplierDocument,
         account.supplierEmail,
@@ -119,7 +138,7 @@ export async function POST(request: NextRequest) {
         account.category,
         account.invoiceNumber,
         account.notes,
-        user.id, // Usar ID do usuário autenticado
+        user.id,
       ],
     )
 

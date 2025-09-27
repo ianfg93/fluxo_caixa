@@ -16,11 +16,11 @@ export async function GET(request: NextRequest) {
     let params: any[] = []
     let whereClause = ""
 
-    // Aplicar filtro de empresa
-    if (user.role !== 'master' || companyFilter) {
-      const targetCompanyId = companyFilter || user.companyId
+    // Aplicar filtro de empresa - SEMPRE aplicar, mesmo para master
+    const targetCompanyId = companyFilter || user.companyId
+    if (targetCompanyId) {
+      whereClause = "WHERE company_id = $1::uuid"
       params.push(targetCompanyId)
-      whereClause = "WHERE company_id = $1"
     }
 
     // Query que calcula status dinamicamente
