@@ -73,9 +73,16 @@ export class ApiAuthService {
   }
 
   static hasPermission(user: ApiUser, action: string): boolean {
+    // Master tem todas as permissões
+    if (user.role === 'master') {
+      return true
+    }
+
     const permissions = {
-      master: ['create_company', 'manage_all', 'delete_all', 'view_all_companies'],
-      administrator: ['manage_company', 'create_users', 'delete_records', 'edit_all'],
+      administrator: [
+        'manage_company', 'create_users', 'delete_records', 'edit_all', 
+        'create_entries', 'view_company'
+      ],
       operational: ['create_entries', 'edit_own', 'view_company']
     }
 

@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CashFlowService, type TransactionType, type TransactionCategory } from "@/lib/cash-flow"
-import { useAuth } from "@/hooks/use-auth"
 
 interface TransactionFormProps {
   type: TransactionType
@@ -19,7 +18,6 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ type, onSuccess, onCancel }: TransactionFormProps) {
-  const { authState } = useAuth()
   const [formData, setFormData] = useState({
     description: "",
     amount: "",
@@ -38,13 +36,13 @@ export function TransactionForm({ type, onSuccess, onCancel }: TransactionFormPr
     setError(null)
 
     try {
+      // ✅ CORRIGIDO: Remover createdBy - será pego automaticamente do token
       const result = await CashFlowService.addTransaction({
         type,
         description: formData.description,
         amount: Number.parseFloat(formData.amount),
         category: formData.category,
         date: new Date(formData.date),
-        createdBy: authState.user?.id || "unknown",
         notes: formData.notes || undefined,
       })
 

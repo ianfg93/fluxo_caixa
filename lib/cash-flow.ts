@@ -1,4 +1,5 @@
 import { ApiClient } from './api-client'
+
 export type TransactionType = "entry" | "exit"
 export type TransactionCategory =
   | "vendas"
@@ -61,17 +62,12 @@ export class CashFlowService {
     }
   }
 
+  // ✅ CORRIGIDO: Usar ApiClient e remover createdBy dos parâmetros
   static async addTransaction(
-    transaction: Omit<CashFlowTransaction, "id" | "createdAt">,
+    transaction: Omit<CashFlowTransaction, "id" | "createdAt" | "createdBy">,
   ): Promise<CashFlowTransaction | null> {
     try {
-      const response = await fetch("/api/cash-flow", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(transaction),
-      })
+      const response = await ApiClient.post("/api/cash-flow", transaction)
 
       if (!response.ok) {
         throw new Error("Failed to add transaction")
@@ -89,18 +85,13 @@ export class CashFlowService {
     }
   }
 
+  // ✅ CORRIGIDO: Usar ApiClient
   static async updateTransaction(
     id: string,
     updates: Partial<CashFlowTransaction>,
   ): Promise<CashFlowTransaction | null> {
     try {
-      const response = await fetch(`/api/cash-flow/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updates),
-      })
+      const response = await ApiClient.put(`/api/cash-flow/${id}`, updates)
 
       if (!response.ok) {
         throw new Error("Failed to update transaction")
@@ -118,12 +109,10 @@ export class CashFlowService {
     }
   }
 
+  // ✅ CORRIGIDO: Usar ApiClient
   static async deleteTransaction(id: string): Promise<boolean> {
     try {
-      const response = await fetch(`/api/cash-flow/${id}`, {
-        method: "DELETE",
-      })
-
+      const response = await ApiClient.delete(`/api/cash-flow/${id}`)
       return response.ok
     } catch (error) {
       console.error("Delete transaction error:", error)
@@ -159,5 +148,4 @@ export class CashFlowService {
     }
     return ["fornecedores", "salarios", "aluguel", "impostos", "marketing", "outros"]
   }
-  
 }

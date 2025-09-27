@@ -46,8 +46,10 @@ export async function GET(request: NextRequest) {
 
     finalQuery += ` ORDER BY cft.transaction_date DESC, cft.created_at DESC`
 
-    // Substituir placeholder do company_id pelo índice correto do parâmetro
-    finalQuery = finalQuery.replace('$COMPANY_FILTER$', `$${companyParams.length > 0 ? '1' : ''}`)
+    // ✅ CORRIGIDO: Substituir placeholder corretamente
+    if (companyParams.length > 0) {
+      finalQuery = finalQuery.replace('$COMPANY_FILTER$', `$1`)
+    }
 
     const result = await query(finalQuery, queryParams)
 
@@ -72,6 +74,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  console.log("🚀 POST /api/cash-flow chamado")
+  
   try {
     // Autenticar usuário
     const user = await ApiAuthService.authenticateRequest(request)
@@ -85,22 +89,23 @@ export async function POST(request: NextRequest) {
     }
 
     const transaction = await request.json()
+    console.log("📝 Dados recebidos:", transaction)
 
+    // ✅ CORRIGIDO: Remover colunas que não existem na tabela
     const result = await query(
       `INSERT INTO cash_flow_transactions 
-       (company_id, type, description, amount, category, transaction_date, created_by, attachments, notes) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+       (company_id, type, description, amount, category, transaction_date, created_by, notes) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
       [
-        user.companyId, // Usar company_id do usuário autenticado
+        user.companyId,
         transaction.type,
         transaction.description,
         transaction.amount,
         transaction.category,
         transaction.date,
-        user.id, // Usar ID do usuário autenticado
-        transaction.attachments ? JSON.stringify(transaction.attachments) : null,
-        transaction.notes,
+        user.id,
+        transaction.notes || null,
       ],
     )
 
@@ -112,12 +117,12 @@ export async function POST(request: NextRequest) {
       amount: Number.parseFloat(row.amount),
       category: row.category,
       date: row.transaction_date,
-      createdBy: user.name, // Nome do usuário autenticado
+      createdBy: user.name,
       createdAt: row.created_at,
-      attachments: row.attachments ? JSON.parse(row.attachments) : undefined,
       notes: row.notes,
     }
 
+    console.log("✅ Transação criada:", newTransaction)
     return NextResponse.json({ transaction: newTransaction })
   } catch (error) {
     console.error("Add transaction API error:", error)
