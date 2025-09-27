@@ -80,7 +80,7 @@ export class ApiAuthService {
 
     const permissions = {
       administrator: [
-        'manage_company', 'create_users', 'delete_records', 'edit_all', 
+        'manage _company', 'create_users', 'delete_records', 'edit_all', 
         'create_entries', 'view_company'
       ],
       operational: ['create_entries', 'edit_own', 'view_company']

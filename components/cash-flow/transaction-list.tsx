@@ -23,7 +23,7 @@ export function TransactionList({ type }: TransactionListProps) {
   const [editingTransaction, setEditingTransaction] = useState<CashFlowTransaction | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "today" })
-  const { hasPermission, authState } = useAuth()
+  const { authState } = useAuth()
 
   const loadTransactions = async () => {
     try {
@@ -68,8 +68,36 @@ export function TransactionList({ type }: TransactionListProps) {
     setEditingTransaction(null)
   }
 
+  // ✅ CORRIGIDO: Verificar permissões baseadas nos roles reais
+  const canEdit = () => {
+    if (!authState.user) return false
+    const role = authState.user.role
+    return role === 'master' || role === 'administrator'
+  }
+
+  const canDelete = () => {
+    if (!authState.user) return false
+    const role = authState.user.role
+    return role === 'master' || role === 'administrator'
+  }
+
+  const canEditOwn = (transaction: CashFlowTransaction) => {
+    if (!authState.user) return false
+    const role = authState.user.role
+    const isOwner = transaction.createdBy === authState.user.name || 
+                   transaction.createdBy === authState.user.id
+    
+    // Master e administrator podem editar qualquer coisa
+    if (role === 'master' || role === 'administrator') return true
+    
+    // Operational só pode editar próprios registros
+    if (role === 'operational' && isOwner) return true
+    
+    return false
+  }
+
   const handleDelete = async (transaction: CashFlowTransaction) => {
-    if (!hasPermission("manager")) {
+    if (!canDelete()) {
       alert("Você não tem permissão para excluir transações.")
       return
     }
@@ -94,8 +122,8 @@ export function TransactionList({ type }: TransactionListProps) {
   }
 
   const handleEdit = (transaction: CashFlowTransaction) => {
-    if (!hasPermission("manager")) {
-      alert("Você não tem permissão para editar transações.")
+    if (!canEditOwn(transaction)) {
+      alert("Você não tem permissão para editar esta transação.")
       return
     }
     setEditingTransaction(transaction)
@@ -258,25 +286,30 @@ export function TransactionList({ type }: TransactionListProps) {
                           {type === "entry" ? "+" : "-"} {formatCurrency(transaction.amount)}
                         </p>
                       </div>
-                      {hasPermission("manager") && (
+                      {/* ✅ CORRIGIDO: Mostrar botões baseados nas permissões corretas */}
+                      {(canEditOwn(transaction) || canDelete()) && (
                         <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleEdit(transaction)}
-                            title="Editar transação"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleDelete(transaction)}
-                            title="Excluir transação"
-                            className="hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canEditOwn(transaction) && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleEdit(transaction)}
+                              title="Editar transação"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete() && (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleDelete(transaction)}
+                              title="Excluir transação"
+                              className="hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
