@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Edit, Trash2, Search, UserPlus, Building2 } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
 import type { User } from "@/lib/user-management"
 
 interface UsersListProps {
@@ -19,13 +20,18 @@ interface UsersListProps {
 }
 
 export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersListProps) {
+  const { authState } = useAuth()
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [companyFilter, setCompanyFilter] = useState<string>("all")
 
-  // Lista única de empresas para o filtro
+  const isMasterUser = authState.user?.role === 'master'
+
+  // Lista única de empresas para o filtro (apenas para master)
   const companies = useMemo(() => {
+    if (!isMasterUser) return []
+    
     const uniqueCompanies = Array.from(
       new Set(
         users
@@ -34,7 +40,7 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
       )
     ).sort()
     return uniqueCompanies
-  }, [users])
+  }, [users, isMasterUser])
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -51,9 +57,9 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
     switch (role) {
       case "master":
         return "bg-red-100 text-red-800"
-      case "manager":
+      case "administrator":
         return "bg-blue-100 text-blue-800"
-      case "basic":
+      case "operational":
         return "bg-green-100 text-green-800"
       default:
         return "bg-gray-100 text-gray-800"
@@ -68,9 +74,9 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
     switch (role) {
       case "master":
         return "Master"
-      case "manager":
+      case "administrator":
         return "Administrador"
-      case "basic":
+      case "operational":
         return "Operacional"
       default:
         return role
@@ -107,15 +113,15 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
             />
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:w-auto">
+          <div className={`grid gap-4 lg:w-auto ${isMasterUser ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger className="w-full lg:w-48">
                 <SelectValue placeholder="Filtrar por nível" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os níveis</SelectItem>
-                <SelectItem value="basic">Operacional</SelectItem>
-                <SelectItem value="manager">Administrador</SelectItem>
+                <SelectItem value="operational">Operacional</SelectItem>
+                <SelectItem value="administrator">Administrador</SelectItem>
                 <SelectItem value="master">Master</SelectItem>
               </SelectContent>
             </Select>
@@ -131,7 +137,8 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
               </SelectContent>
             </Select>
             
-            {companies.length > 0 && (
+            {/* Filtro de empresa - apenas para master */}
+            {isMasterUser && companies.length > 0 && (
               <Select value={companyFilter} onValueChange={setCompanyFilter}>
                 <SelectTrigger className="w-full lg:w-48">
                   <SelectValue placeholder="Filtrar por empresa" />
@@ -150,12 +157,12 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
         </div>
 
         {/* Stats */}
-        {(searchTerm || roleFilter !== "all" || statusFilter !== "all" || companyFilter !== "all") && (
+        {(searchTerm || roleFilter !== "all" || statusFilter !== "all" || (isMasterUser && companyFilter !== "all")) && (
           <div className="mb-4 p-3 bg-muted/50 rounded-lg">
             <p className="text-sm text-muted-foreground">
               Exibindo <span className="font-medium">{filteredUsers.length}</span> de{" "}
               <span className="font-medium">{users.length}</span> usuários
-              {companyFilter !== "all" && (
+              {isMasterUser && companyFilter !== "all" && (
                 <span> • Empresa: <span className="font-medium">{companyFilter}</span></span>
               )}
             </p>
@@ -168,7 +175,8 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Empresa</TableHead>
+                {/* Coluna Empresa - apenas para master */}
+                {isMasterUser && <TableHead>Empresa</TableHead>}
                 <TableHead>Nível</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Criado em</TableHead>
@@ -179,8 +187,8 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    {searchTerm || roleFilter !== "all" || statusFilter !== "all" || companyFilter !== "all" 
+                  <TableCell colSpan={isMasterUser ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                    {searchTerm || roleFilter !== "all" || statusFilter !== "all" || (isMasterUser && companyFilter !== "all")
                       ? "Nenhum usuário encontrado com os filtros aplicados"
                       : "Nenhum usuário encontrado"
                     }
@@ -191,16 +199,19 @@ export function UsersList({ users, onEdit, onDelete, onAdd, onRefresh }: UsersLi
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      {user.companyName ? (
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm">{user.companyName}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
+                    {/* Célula Empresa - apenas para master */}
+                    {isMasterUser && (
+                      <TableCell>
+                        {user.companyName ? (
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm">{user.companyName}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Badge className={getRoleBadgeColor(user.role)}>{getRoleLabel(user.role)}</Badge>
                     </TableCell>
