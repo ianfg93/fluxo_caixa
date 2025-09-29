@@ -1,15 +1,14 @@
 "use client"
 
-import React, { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
-import { Calendar, Filter, X } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-export type DateFilter = {
-  period?: "today" | "month" | "quarter" | "year" | "custom"
+export interface DateFilter {
+  period: "today" | "week" | "month" | "custom" | "all"
   startDate?: string
   endDate?: string
 }
@@ -20,165 +19,122 @@ interface DateFilterProps {
 }
 
 export function DateFilter({ onFilterChange, currentFilter }: DateFilterProps) {
-  const [showCustom, setShowCustom] = useState(currentFilter.period === "custom")
+  const [selectedPeriod, setSelectedPeriod] = useState<DateFilter["period"]>(currentFilter.period)
+  const [customStartDate, setCustomStartDate] = useState("")
+  const [customEndDate, setCustomEndDate] = useState("")
 
-  // Definir filtro padrão como "hoje" na primeira renderização
-  React.useEffect(() => {
-    if (!currentFilter.period) {
-      handlePeriodChange("today")
-    }
+  // Aplicar filtro inicial quando o componente montar
+  useEffect(() => {
+    handlePeriodChange(selectedPeriod)
   }, [])
 
-  const handlePeriodChange = (period: string) => {
+  const handlePeriodChange = (period: DateFilter["period"]) => {
+    setSelectedPeriod(period)
+    
     const today = new Date()
-    let filter: DateFilter = { period: period as DateFilter["period"] }
+    let startDate: string | undefined
+    let endDate: string | undefined
 
     switch (period) {
       case "today":
-        const todayStr = today.toISOString().split("T")[0]
-        filter = { period: "today", startDate: todayStr, endDate: todayStr }
-        setShowCustom(false)
+        startDate = formatDate(today)
+        endDate = formatDate(today)
+        break
+      
+      case "week":
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - today.getDay())
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        startDate = formatDate(weekStart)
+        endDate = formatDate(weekEnd)
         break
       
       case "month":
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
         const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-        filter = { 
-          period: "month", 
-          startDate: monthStart.toISOString().split("T")[0], 
-          endDate: monthEnd.toISOString().split("T")[0] 
-        }
-        setShowCustom(false)
+        startDate = formatDate(monthStart)
+        endDate = formatDate(monthEnd)
         break
       
-      case "quarter":
-        const quarterStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1)
-        const quarterEnd = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3 + 3, 0)
-        filter = { 
-          period: "quarter", 
-          startDate: quarterStart.toISOString().split("T")[0], 
-          endDate: quarterEnd.toISOString().split("T")[0] 
-        }
-        setShowCustom(false)
-        break
-      
-      case "year":
-        const yearStart = new Date(today.getFullYear(), 0, 1)
-        const yearEnd = new Date(today.getFullYear(), 11, 31)
-        filter = { 
-          period: "year", 
-          startDate: yearStart.toISOString().split("T")[0], 
-          endDate: yearEnd.toISOString().split("T")[0] 
-        }
-        setShowCustom(false)
+      case "all":
+        startDate = undefined
+        endDate = undefined
         break
       
       case "custom":
-        filter = { period: "custom" }
-        setShowCustom(true)
-        break
-      
-      default:
-        filter = {}
-        setShowCustom(false)
+        return
     }
 
-    onFilterChange(filter)
+    onFilterChange({ period, startDate, endDate })
   }
 
-  const handleCustomDateChange = (field: "startDate" | "endDate", value: string) => {
-    const newFilter = { ...currentFilter, [field]: value }
-    onFilterChange(newFilter)
-  }
-
-  const clearFilter = () => {
-    setShowCustom(false)
-    onFilterChange({})
-  }
-
-  const getPeriodLabel = () => {
-    switch (currentFilter.period) {
-      case "today": return "Hoje"
-      case "month": return "Este Mês"
-      case "quarter": return "Este Trimestre" 
-      case "year": return "Este Ano"
-      case "custom": return "Período Personalizado"
-      default: return "Todos os Períodos"
+  const handleCustomDateChange = () => {
+    if (customStartDate && customEndDate) {
+      onFilterChange({
+        period: "custom",
+        startDate: customStartDate,
+        endDate: customEndDate
+      })
     }
   }
 
-  const getDateRangeText = () => {
-    if (currentFilter.startDate && currentFilter.endDate) {
-      const start = new Date(currentFilter.startDate).toLocaleDateString("pt-BR")
-      const end = new Date(currentFilter.endDate).toLocaleDateString("pt-BR")
-      return currentFilter.startDate === currentFilter.endDate ? start : `${start} - ${end}`
-    }
-    return ""
+  const formatDate = (date: Date): string => {
+    return date.toISOString().split('T')[0]
   }
 
   return (
-    <Card className="mb-6">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Label className="font-medium">Filtrar por período:</Label>
+    <Card>
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Período</Label>
+            <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Hoje</SelectItem>
+                <SelectItem value="week">Esta Semana</SelectItem>
+                <SelectItem value="month">Este Mês</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          
-          <Select value={currentFilter.period || ""} onValueChange={handlePeriodChange}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Selecione um período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Períodos</SelectItem>
-              <SelectItem value="today">Hoje</SelectItem>
-              <SelectItem value="month">Este Mês</SelectItem>
-              <SelectItem value="quarter">Este Trimestre</SelectItem>
-              <SelectItem value="year">Este Ano</SelectItem>
-              <SelectItem value="custom">Período Personalizado</SelectItem>
-            </SelectContent>
-          </Select>
 
-          {currentFilter.period && (
-            <Button variant="outline" size="sm" onClick={clearFilter}>
-              <X className="h-4 w-4 mr-1" />
-              Limpar
-            </Button>
+          {selectedPeriod === "custom" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Data Inicial</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">Data Final</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  onClick={handleCustomDateChange}
+                  disabled={!customStartDate || !customEndDate}
+                  className="w-full"
+                >
+                  Aplicar
+                </Button>
+              </div>
+            </div>
           )}
         </div>
-
-        {showCustom && (
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Data Inicial</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={currentFilter.startDate || ""}
-                onChange={(e) => handleCustomDateChange("startDate", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endDate">Data Final</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={currentFilter.endDate || ""}
-                onChange={(e) => handleCustomDateChange("endDate", e.target.value)}
-              />
-            </div>
-          </div>
-        )}
-
-        {currentFilter.period && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-            <span>Exibindo: {getPeriodLabel()}</span>
-            {getDateRangeText() && (
-              <span className="font-medium">({getDateRangeText()})</span>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   )
