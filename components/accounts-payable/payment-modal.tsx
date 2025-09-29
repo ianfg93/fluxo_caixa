@@ -14,21 +14,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { type AccountPayable } from "@/lib/accounts-payable"
+import { AccountsPayableService, type AccountPayable } from "@/lib/accounts-payable"
 
 interface PaymentModalProps {
   account: AccountPayable
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: (paymentData: {
-    paidAmount: number
-    paidDate: Date
-    paymentMethod?: string
-    notes?: string
-  }) => void
+  onSuccess: () => void
+  onCancel: () => void
 }
 
-export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentModalProps) {
+export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps) {
   const [formData, setFormData] = useState({
     paidAmount: account.amount.toString(),
     paidDate: new Date().toISOString().split("T")[0],
@@ -42,15 +36,15 @@ export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentMod
     setIsLoading(true)
 
     try {
-      await onConfirm({
+      await AccountsPayableService.markAsPaid(account.id, {
         paidAmount: Number.parseFloat(formData.paidAmount),
         paidDate: new Date(formData.paidDate),
         paymentMethod: formData.paymentMethod || undefined,
         notes: formData.notes || undefined,
       })
-      onClose()
+      onSuccess()
     } catch (error) {
-      
+      console.error("Erro ao marcar conta como paga:", error)
     } finally {
       setIsLoading(false)
     }
@@ -64,7 +58,7 @@ export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentMod
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={!!account} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Marcar como Pago</DialogTitle>
@@ -140,7 +134,7 @@ export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentMod
           </div>
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>

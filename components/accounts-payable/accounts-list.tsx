@@ -72,7 +72,7 @@ export function AccountsList() {
     return new Date(date).toLocaleDateString("pt-BR")
   }
 
-  const getStatusColor = (status: PaymentStatus, dueDate: Date) => {
+ const getStatusColor = (status: PaymentStatus, dueDate: Date) => {
     if (status === "pending" && new Date(dueDate) < new Date()) {
       return "bg-red-100 text-red-800"
     }
@@ -82,6 +82,7 @@ export function AccountsList() {
       paid: "bg-green-100 text-green-800",
       overdue: "bg-red-100 text-red-800",
       cancelled: "bg-gray-100 text-gray-800",
+      partially_paid: "bg-blue-100 text-blue-800",
     }
     return colors[status]
   }
@@ -96,6 +97,7 @@ export function AccountsList() {
       paid: "Pago",
       overdue: "Em Atraso",
       cancelled: "Cancelado",
+      partially_paid: "Parcialmente Pago",
     }
     return labels[status]
   }

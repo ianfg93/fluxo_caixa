@@ -178,9 +178,14 @@ export class AccountsPayableService {
     }
   }
 
-  static async markAsPaid(id: string, paidAmount: number, paidDate: Date): Promise<AccountPayable | null> {
+  static async markAsPaid(id: string, paymentData: {
+    paidAmount: number
+    paidDate: Date
+    paymentMethod?: string
+    notes?: string
+  }): Promise<AccountPayable | null> {
     try {
-      const response = await ApiClient.post(`/api/accounts-payable/${id}/pay`, { paidAmount, paidDate })
+      const response = await ApiClient.post(`/api/accounts-payable/${id}/pay`, paymentData)
 
       if (!response.ok) {
         throw new Error("Failed to mark as paid")
@@ -197,7 +202,7 @@ export class AccountsPayableService {
     } catch (error) {
       return null
     }
-  }
+}
 
   static async getOverdueAccounts(): Promise<AccountPayable[]> {
     try {
