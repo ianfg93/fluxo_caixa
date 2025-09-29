@@ -9,6 +9,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
+    // Para o formulário de usuário, verificar se o usuário pode acessar empresas
+    const { searchParams } = new URL(request.url)
+    const forUserForm = searchParams.get('for_user_form') === 'true'
+
+    if (forUserForm) {
+      // Apenas usuários master podem ver todas as empresas no formulário
+      if (user.role !== 'master') {
+        return NextResponse.json({ error: "Acesso negado" }, { status: 403 })
+      }
+      
+      // Retornar formato simplificado para o formulário
+      const result = await query(`
+        SELECT id, name, trade_name 
+        FROM companies 
+        WHERE active = true 
+        ORDER BY COALESCE(trade_name, name)
+      `)
+
+      const companies = result.rows.map((row) => ({
+        id: row.id,
+        name: row.trade_name || row.name
+      }))
+
+      return NextResponse.json(companies)
+    }
+
+    // Lógica original para outras partes do sistema
     let sql = "SELECT * FROM companies"
     let params: any[] = []
 
@@ -45,6 +72,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ companies })
   } catch (error) {
+    console.error("Erro ao buscar empresas:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
@@ -118,6 +146,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ company: newCompany })
   } catch (error) {
+    console.error("Erro ao criar empresa:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

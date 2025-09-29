@@ -75,9 +75,26 @@ export class ApiAuthService {
       return true
     }
 
+    // Verificar permissões do banco de dados primeiro
+    if (user.permissions) {
+      switch (action) {
+        case 'manage_company':
+          return user.permissions.can_manage_company === true
+        case 'create_users':
+          return user.permissions.can_create_users === true
+        case 'manage_all':
+          return user.permissions.can_manage_all_companies === true
+        case 'create_company':
+          return user.permissions.can_create_companies === true
+        default:
+          break
+      }
+    }
+
+    // Fallback para permissões hardcoded (corrigidas)
     const permissions = {
       administrator: [
-        'manage _company', 'create_users', 'delete_records', 'edit_all', 
+        'manage_company', 'create_users', 'delete_records', 'edit_all', 
         'create_entries', 'view_company'
       ],
       operational: ['create_entries', 'edit_own', 'view_company']

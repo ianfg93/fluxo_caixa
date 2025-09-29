@@ -41,7 +41,7 @@ export function Sidebar() {
               <div className="flex-1">
                 <h2 className="text-lg font-semibold text-primary">Fluxo de Caixa</h2>
                 <p className="text-xs text-muted-foreground mt-1 truncate">
-                  {authState.user?.name}
+                  {authState.user?.name} - {authState.user?.companyName}
                 </p>
               </div>
             )}
