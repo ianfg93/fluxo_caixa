@@ -1,4 +1,4 @@
-export type NotificationType = "payment_due" | "payment_overdue" | "payment_completed" | "cash_flow_alert" | "system"
+export type NotificationType = "payment_due" | "payment_overdue" | "payment_completed" | "cash_flow_alert" | "system" | "low_balance"
 
 export interface Notification {
   id: string
@@ -39,7 +39,7 @@ const mockNotifications: Notification[] = [
   },
   {
     id: "3",
-    type: "cash_flow_alert",
+    type: "low_balance",
     title: "Saldo Baixo",
     message: "O saldo atual está abaixo do limite mínimo estabelecido",
     userId: "1",
@@ -50,13 +50,20 @@ const mockNotifications: Notification[] = [
 ]
 
 export class NotificationService {
-  static getNotifications(userId: string): Notification[] {
+  static getNotifications(userId?: string): Notification[] {
+    if (!userId) {
+      return mockNotifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    }
+    
     return mockNotifications
       .filter((n) => n.userId === userId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   }
 
-  static getUnreadCount(userId: string): number {
+  static getUnreadCount(userId?: string): number {
+    if (!userId) {
+      return mockNotifications.filter((n) => !n.read).length
+    }
     return mockNotifications.filter((n) => n.userId === userId && !n.read).length
   }
 
@@ -67,8 +74,12 @@ export class NotificationService {
     }
   }
 
-  static markAllAsRead(userId: string): void {
-    mockNotifications.filter((n) => n.userId === userId).forEach((n) => (n.read = true))
+  static markAllAsRead(userId?: string): void {
+    if (!userId) {
+      mockNotifications.forEach((n) => (n.read = true))
+    } else {
+      mockNotifications.filter((n) => n.userId === userId).forEach((n) => (n.read = true))
+    }
   }
 
   static createNotification(notification: Omit<Notification, "id" | "createdAt">): Notification {
@@ -93,9 +104,7 @@ export class NotificationService {
 
 export class EmailService {
   static async sendEmail(to: string, subject: string, body: string): Promise<boolean> {
-
     await new Promise((resolve) => setTimeout(resolve, 1000))
-
     return Math.random() > 0.1
   }
 
@@ -158,6 +167,22 @@ export class EmailService {
           Saldo Atual: ${data.currentBalance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
           
           Recomendamos revisar o fluxo de caixa e tomar as medidas necessárias.
+          
+          Atenciosamente,
+          Sistema de Fluxo de Caixa
+        `,
+      }),
+      low_balance: (data) => ({
+        subject: "Alerta: Saldo Baixo",
+        body: `
+          Olá,
+          
+          ${data.message || 'O saldo atual está abaixo do limite mínimo estabelecido.'}
+          
+          Saldo Atual: ${data.currentBalance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          Saldo Mínimo: ${data.minimumBalance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+          
+          Recomendamos revisar o fluxo de caixa.
           
           Atenciosamente,
           Sistema de Fluxo de Caixa

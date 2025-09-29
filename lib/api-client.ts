@@ -51,6 +51,19 @@ export class ApiClient {
     }
   }
 
+  static async patch(url: string, data?: any): Promise<Response> {
+    try {
+      return await fetch(url, {
+        method: 'PATCH',
+        headers: this.getAuthHeaders(),
+        body: data ? JSON.stringify(data) : undefined,
+      })
+    } catch (error) {
+      console.error('API PATCH error:', error)
+      throw error
+    }
+  }
+
   static async delete(url: string): Promise<Response> {
     try {
       return await fetch(url, {
