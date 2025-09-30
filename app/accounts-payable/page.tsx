@@ -134,8 +134,7 @@ export default function AccountsPayablePage() {
     try {
       const result = await AccountsPayableService.markAsPaid(
         paymentAccount.id,
-        paymentData.paidAmount,
-        paymentData.paidDate
+        paymentData
       )
 
       if (result) {
