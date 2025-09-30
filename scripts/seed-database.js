@@ -1,13 +1,24 @@
 const { Client } = require("pg")
+const isProduction = process.env.IS_PRODUCTION === 'true';
 
 async function seedDatabase() {
-  const client = new Client({
-    host: process.env.DB_HOST || "localhost",
-    database: process.env.DB_NAME || "fluxo_caixa",
-    user: process.env.DB_USERNAME || "sete_user",
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT || 5432,
-  })
+  const connectionConfig = isProduction 
+    ? { connectionString: process.env.DATABASE_URL,
+        ssl: { 
+          rejectUnauthorized: false, 
+        },
+      }
+    : { 
+        host: process.env.DB_HOST || "localhost",
+        database: process.env.DB_NAME || "fluxo_caixa",
+        user: process.env.DB_USERNAME || "sete_user",
+        password: process.env.DB_PASSWORD,
+        port: process.env.DB_PORT || 5432,
+  
+      };
+    
+    const client = new Client(connectionConfig);
+  
 
   try {
     await client.connect()
