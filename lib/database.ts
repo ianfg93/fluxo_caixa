@@ -3,16 +3,28 @@ import { Client, Pool } from "pg"
 let pool: Pool | null = null
 
 export function getDbConfig() {
-  return {
-    host: process.env.DATABASE_POSTGRES_HOST || 'localhost',
-    database: process.env.DATABASE_POSTGRES_DATABASE || 'fluxo_caixa',
-    user: process.env.DATABASE_POSTGRES_USER || 'sete_user',
-    password: process.env.DATABASE_POSTGRES_PASSWORD,
-    port: Number.parseInt(process.env.DATABASE_POSTGRES_PORT  || "5432"),
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-  }
+    if (process.env.DATABASE_POSTGRES_URL) {
+        return {
+            connectionString: process.env.DATABASE_POSTGRES_URL,
+            ssl: {
+                rejectUnauthorized: false,
+            },
+            max: 10,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 2000,
+        }
+    }
+
+    return {
+        host: process.env.DATABASE_POSTGRES_HOST || 'localhost',
+        database: process.env.DATABASE_POSTGRES_DATABASE || 'fluxo_caixa',
+        user: process.env.DATABASE_POSTGRES_USER || 'sete_user',
+        password: process.env.DATABASE_POSTGRES_PASSWORD,
+        port: Number.parseInt(process.env.DATABASE_POSTGRES_PORT || "5432"),
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+    }
 }
 
 export async function getDbPool() {

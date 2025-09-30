@@ -4,13 +4,31 @@ const fs = require("fs")
 const path = require("path")
 const crypto = require("crypto")
 
+function getMigrationClientConfig() {
+    const connectionString = process.env.DATABASE_POSTGRES_URL;
+
+    if (connectionString) {
+        return {
+            connectionString: connectionString,
+            ssl: {
+                rejectUnauthorized: false, 
+            },
+        };
+    }
+
+    return {
+        host: process.env.DATABASE_POSTGRES_HOST || 'localhost',
+        database: process.env.DATABASE_POSTGRES_DATABASE || 'fluxo_caixa',
+        user: process.env.DATABASE_POSTGRES_USER || 'postgres',
+        password: process.env.DATABASE_POSTGRES_PASSWORD,
+        port: Number.parseInt(process.env.DATABASE_POSTGRES_PORT || "5432"),
+        
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    };
+}
+
 async function runMigrations() {
-  const client = new Client({
-    connectionString: process.env.DB_URL,
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  })
+    const client = new Client(getMigrationClientConfig());
 
   console.log("🚀 Iniciando processo de migração...")
   console.log("⚠️  ATENÇÃO: Este processo irá APAGAR todos os dados existentes!")
