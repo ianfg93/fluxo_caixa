@@ -6,7 +6,7 @@ const crypto = require("crypto")
 
 async function runMigrations() {
   const client = new Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DB_URL,
     ssl: {
       rejectUnauthorized: false,
     },
