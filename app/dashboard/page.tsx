@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { Plus, Calendar } from "lucide-react"
 import { MetricsCards } from "@/components/dashboard/metrics-cards"
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart"
 import { CategoryChart } from "@/components/dashboard/category-chart"
@@ -15,6 +15,8 @@ import { CashFlowService } from "@/lib/cash-flow"
 import { useAuth } from "@/hooks/use-auth"
 import { TrendingUp, TrendingDown } from "lucide-react"
 import { CreateCompanyModal } from "@/components/companies/create-company-modal"
+
+type PeriodFilter = "month" | "quarter" | "year" | "all"
 
 export default function DashboardPage() {
   const { authState } = useAuth()
@@ -27,6 +29,7 @@ export default function DashboardPage() {
   
   const [availableCompanies, setAvailableCompanies] = useState<any[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>("")
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>("month")
 
   const isMaster = authState.user?.role === 'master'
   const isAdmin = authState.user?.role === 'administrator' || isMaster
@@ -36,7 +39,7 @@ export default function DashboardPage() {
       loadAvailableCompanies()
     }
     loadDashboardData()
-  }, [selectedCompany])
+  }, [selectedCompany, selectedPeriod])
 
   async function loadAvailableCompanies() {
     try {
@@ -49,31 +52,81 @@ export default function DashboardPage() {
     }
   }
 
-  async function loadDashboardData() {
-  try {
-    setLoading(true)
-
-    const companyFilter = isMaster && selectedCompany && selectedCompany !== 'all' ? selectedCompany : undefined
-
-    const [dashboardMetrics, monthlyReport, entryCategoryData, exitCategoryData, transactions] = await Promise.all([
-      ReportsService.getDashboardMetrics(companyFilter),
-      ReportsService.getMonthlyData(companyFilter),
-      ReportsService.getCategoryBreakdown("entry", companyFilter),
-      ReportsService.getCategoryBreakdown("exit", companyFilter),
-      CashFlowService.getTransactions(undefined, companyFilter),
-    ])
-
-    setMetrics(dashboardMetrics)
-    setMonthlyData(monthlyReport)
-    setEntryCategories(entryCategoryData)
-    setExitCategories(exitCategoryData)
-    setRecentTransactions(transactions.slice(0, 5))
-  } catch (error) {
+  // Calcular data de início baseado no período selecionado
+  function getStartDate(period: PeriodFilter): Date | undefined {
+    const now = new Date()
     
-  } finally {
-    setLoading(false)
+    switch (period) {
+      case "month":
+        // Primeiro dia do mês atual
+        return new Date(now.getFullYear(), now.getMonth(), 1)
+      
+      case "quarter":
+        // Primeiro dia do trimestre atual
+        const currentQuarter = Math.floor(now.getMonth() / 3)
+        return new Date(now.getFullYear(), currentQuarter * 3, 1)
+      
+      case "year":
+        // Primeiro dia do ano atual
+        return new Date(now.getFullYear(), 0, 1)
+      
+      case "all":
+        // Sem filtro de data
+        return undefined
+      
+      default:
+        return undefined
+    }
   }
-}
+
+  function getPeriodLabel(period: PeriodFilter): string {
+    const now = new Date()
+    
+    switch (period) {
+      case "month":
+        return now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+      
+      case "quarter":
+        const quarter = Math.floor(now.getMonth() / 3) + 1
+        return `${quarter}º Trimestre de ${now.getFullYear()}`
+      
+      case "year":
+        return now.getFullYear().toString()
+      
+      case "all":
+        return "Todo o período"
+      
+      default:
+        return ""
+    }
+  }
+
+  async function loadDashboardData() {
+    try {
+      setLoading(true)
+
+      const companyFilter = isMaster && selectedCompany && selectedCompany !== 'all' ? selectedCompany : undefined
+      const startDate = getStartDate(selectedPeriod)
+
+      const [dashboardMetrics, monthlyReport, entryCategoryData, exitCategoryData, transactions] = await Promise.all([
+        ReportsService.getDashboardMetrics(companyFilter, startDate),
+        ReportsService.getMonthlyData(companyFilter, startDate),
+        ReportsService.getCategoryBreakdown("entry", companyFilter, startDate),
+        ReportsService.getCategoryBreakdown("exit", companyFilter, startDate),
+        CashFlowService.getTransactions(undefined, companyFilter),
+      ])
+
+      setMetrics(dashboardMetrics)
+      setMonthlyData(monthlyReport)
+      setEntryCategories(entryCategoryData)
+      setExitCategories(exitCategoryData)
+      setRecentTransactions(transactions.slice(0, 5))
+    } catch (error) {
+      
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString("pt-BR", {
@@ -108,6 +161,53 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* Filtros */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <span className="font-medium">Período:</span>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={selectedPeriod === "month" ? "default" : "outline"}
+                onClick={() => setSelectedPeriod("month")}
+                size="sm"
+              >
+                Mês Atual
+              </Button>
+              <Button
+                variant={selectedPeriod === "quarter" ? "default" : "outline"}
+                onClick={() => setSelectedPeriod("quarter")}
+                size="sm"
+              >
+                Trimestre
+              </Button>
+              <Button
+                variant={selectedPeriod === "year" ? "default" : "outline"}
+                onClick={() => setSelectedPeriod("year")}
+                size="sm"
+              >
+                Ano
+              </Button>
+              <Button
+                variant={selectedPeriod === "all" ? "default" : "outline"}
+                onClick={() => setSelectedPeriod("all")}
+                size="sm"
+              >
+                Total
+              </Button>
+            </div>
+
+            <div className="flex-1 text-sm text-muted-foreground sm:text-right">
+              Exibindo: <strong>{getPeriodLabel(selectedPeriod)}</strong>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {!metrics ? (
         <div className="flex items-center justify-center min-h-[400px]">

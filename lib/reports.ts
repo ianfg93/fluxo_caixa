@@ -25,16 +25,34 @@ export interface DashboardMetrics {
 }
 
 export class ReportsService {
-  static async getDashboardMetrics(companyId?: string): Promise<DashboardMetrics> {
+  static async getDashboardMetrics(companyId?: string, startDate?: Date): Promise<DashboardMetrics> {
     try {
-      const balance = await CashFlowService.getBalance(companyId)
+      // Buscar todas as transações
+      const transactions = await CashFlowService.getTransactions(undefined, companyId)
+      
+      // Filtrar por data se fornecida
+      const filteredTransactions = startDate 
+        ? transactions.filter(t => new Date(t.date) >= startDate)
+        : transactions
+
+      // Calcular balance baseado nas transações filtradas
+      const entries = filteredTransactions
+        .filter(t => t.type === "entry")
+        .reduce((sum, t) => sum + t.amount, 0)
+      
+      const exits = filteredTransactions
+        .filter(t => t.type === "exit")
+        .reduce((sum, t) => sum + t.amount, 0)
+
+      const balance = entries - exits
+
       const payableTotals = await AccountsPayableService.getTotalsByStatus(companyId)
       const upcomingPayments = await AccountsPayableService.getUpcomingPayments(7, companyId)
 
       return {
-        totalBalance: balance.total,
-        monthlyEntries: balance.entries,
-        monthlyExits: balance.exits,
+        totalBalance: balance,
+        monthlyEntries: entries,
+        monthlyExits: exits,
         pendingPayables: payableTotals.pending.amount,
         overduePayables: payableTotals.overdue.amount,
         upcomingPayments: upcomingPayments.reduce((sum, p) => sum + p.amount, 0),
@@ -52,19 +70,42 @@ export class ReportsService {
     }
   }
 
-  static async getMonthlyData(companyId?: string): Promise<MonthlyData[]> {
+  static async getMonthlyData(companyId?: string, startDate?: Date): Promise<MonthlyData[]> {
     try {
       const transactions = await CashFlowService.getTransactions(undefined, companyId)
+      
+      // Filtrar por data se fornecida
+      const filteredTransactions = startDate 
+        ? transactions.filter(t => new Date(t.date) >= startDate)
+        : transactions
+
       const monthlyMap = new Map<string, { entries: number; exits: number }>()
 
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date()
-        date.setMonth(date.getMonth() - i)
-        const monthKey = date.toISOString().slice(0, 7)
-        monthlyMap.set(monthKey, { entries: 0, exits: 0 })
+      // Se há startDate, criar meses a partir dela até agora
+      // Senão, últimos 6 meses como antes
+      if (startDate) {
+        const start = new Date(startDate)
+        const now = new Date()
+        
+        let current = new Date(start.getFullYear(), start.getMonth(), 1)
+        const end = new Date(now.getFullYear(), now.getMonth(), 1)
+        
+        while (current <= end) {
+          const monthKey = current.toISOString().slice(0, 7)
+          monthlyMap.set(monthKey, { entries: 0, exits: 0 })
+          current.setMonth(current.getMonth() + 1)
+        }
+      } else {
+        // Comportamento original: últimos 6 meses
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date()
+          date.setMonth(date.getMonth() - i)
+          const monthKey = date.toISOString().slice(0, 7)
+          monthlyMap.set(monthKey, { entries: 0, exits: 0 })
+        }
       }
 
-      transactions.forEach((transaction) => {
+      filteredTransactions.forEach((transaction) => {
         const monthKey = new Date(transaction.date).toISOString().slice(0, 7)
         const monthData = monthlyMap.get(monthKey)
 
@@ -92,12 +133,22 @@ export class ReportsService {
     }
   }
 
-  static async getCategoryBreakdown(type: "entry" | "exit", companyId?: string): Promise<CategoryData[]> {
+  static async getCategoryBreakdown(
+    type: "entry" | "exit", 
+    companyId?: string, 
+    startDate?: Date
+  ): Promise<CategoryData[]> {
     try {
       const transactions = await CashFlowService.getTransactions(type, companyId)
+      
+      // Filtrar por data se fornecida
+      const filteredTransactions = startDate 
+        ? transactions.filter(t => new Date(t.date) >= startDate)
+        : transactions
+
       const categoryMap = new Map<string, { amount: number; count: number }>()
 
-      transactions.forEach((transaction) => {
+      filteredTransactions.forEach((transaction) => {
         const existing = categoryMap.get(transaction.category) || { amount: 0, count: 0 }
         categoryMap.set(transaction.category, {
           amount: existing.amount + transaction.amount,
@@ -105,7 +156,7 @@ export class ReportsService {
         })
       })
 
-      const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0)
+      const totalAmount = filteredTransactions.reduce((sum, t) => sum + t.amount, 0)
 
       return Array.from(categoryMap.entries())
         .map(([category, data]) => ({
