@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit, Trash2, Package, PackagePlus } from "lucide-react"
+import { Plus, Edit, Trash2, Package, PackagePlus, Search, X, AlertTriangle } from "lucide-react"
 import { ProductService, type Product } from "@/lib/products"
 import { useAuth } from "@/hooks/use-auth"
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -21,6 +23,13 @@ export default function ProductsPage() {
   const [addStockQuantity, setAddStockQuantity] = useState("0")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { authState } = useAuth()
+
+  // Estados de filtros
+  const [searchTerm, setSearchTerm] = useState("")
+  const [sortBy, setSortBy] = useState<"code" | "name" | "quantity-asc" | "quantity-desc">("code")
+  const [showOnlyLowStock, setShowOnlyLowStock] = useState(false)
+  const [showOnlyOutOfStock, setShowOnlyOutOfStock] = useState(false)
+  const [lowStockThreshold, setLowStockThreshold] = useState(5)
 
   useEffect(() => {
     loadProducts()
@@ -134,6 +143,57 @@ export default function ProductsPage() {
     setAddStockQuantity("0")
     setShowAddStockForm(false)
     setAddingStockProduct(null)
+  }
+
+  // Função de filtrar e ordenar produtos
+  const getFilteredAndSortedProducts = () => {
+    let filtered = [...products]
+
+    // Filtro de busca por nome
+    if (searchTerm) {
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Filtro de estoque baixo
+    if (showOnlyLowStock) {
+      filtered = filtered.filter(product => 
+        product.quantity > 0 && product.quantity <= lowStockThreshold
+      )
+    }
+
+    // Filtro de produtos sem estoque
+    if (showOnlyOutOfStock) {
+      filtered = filtered.filter(product => product.quantity === 0)
+    }
+
+    // Ordenação
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "code":
+          return a.code - b.code
+        case "name":
+          return a.name.localeCompare(b.name)
+        case "quantity-asc":
+          return a.quantity - b.quantity
+        case "quantity-desc":
+          return b.quantity - a.quantity
+        default:
+          return 0
+      }
+    })
+
+    return filtered
+  }
+
+  const filteredProducts = getFilteredAndSortedProducts()
+
+  const clearFilters = () => {
+    setSearchTerm("")
+    setSortBy("code")
+    setShowOnlyLowStock(false)
+    setShowOnlyOutOfStock(false)
   }
 
   // Verificar permissão
@@ -251,6 +311,109 @@ export default function ProductsPage() {
           </Card>
         )}
 
+        {/* Barra de Filtros */}
+        {!loading && products.length > 0 && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    Filtros e Ordenação
+                  </h3>
+                  {(searchTerm || sortBy !== "code" || showOnlyLowStock || showOnlyOutOfStock) && (
+                    <Button size="sm" variant="ghost" onClick={clearFilters}>
+                      <X className="h-4 w-4 mr-1" />
+                      Limpar Filtros
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Busca por nome */}
+                  <div className="space-y-2">
+                    <Label htmlFor="search">Buscar Produto</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="search"
+                        type="text"
+                        placeholder="Digite o nome..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ordenação */}
+                  <div className="space-y-2">
+                    <Label htmlFor="sort">Ordenar Por</Label>
+                    <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                      <SelectTrigger id="sort">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="code">Código (Padrão)</SelectItem>
+                        <SelectItem value="name">Nome (A-Z)</SelectItem>
+                        <SelectItem value="quantity-asc">Menor Estoque</SelectItem>
+                        <SelectItem value="quantity-desc">Maior Estoque</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Estoque crítico */}
+                  <div className="space-y-2">
+                    <Label>Filtros Rápidos</Label>
+                    <div className="flex items-center space-x-2 h-10">
+                      <Checkbox
+                        id="lowStock"
+                        checked={showOnlyLowStock}
+                        onCheckedChange={(checked) => {
+                          setShowOnlyLowStock(checked as boolean)
+                          if (checked) setShowOnlyOutOfStock(false)
+                        }}
+                      />
+                      <label
+                        htmlFor="lowStock"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        Estoque Baixo (≤{lowStockThreshold})
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Sem estoque */}
+                  <div className="space-y-2">
+                    <Label>&nbsp;</Label>
+                    <div className="flex items-center space-x-2 h-10">
+                      <Checkbox
+                        id="outOfStock"
+                        checked={showOnlyOutOfStock}
+                        onCheckedChange={(checked) => {
+                          setShowOnlyOutOfStock(checked as boolean)
+                          if (checked) setShowOnlyLowStock(false)
+                        }}
+                      />
+                      <label
+                        htmlFor="outOfStock"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        Sem Estoque (0)
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contador */}
+                <div className="text-sm text-muted-foreground border-t pt-3">
+                  Exibindo <strong>{filteredProducts.length}</strong> de <strong>{products.length}</strong> produtos
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {loading ? (
           <Card>
             <CardContent className="flex items-center justify-center py-12">
@@ -271,53 +434,97 @@ export default function ProductsPage() {
               </div>
             </CardContent>
           </Card>
+        ) : filteredProducts.length === 0 ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <p className="text-muted-foreground mb-2">Nenhum produto encontrado com os filtros aplicados</p>
+                <Button size="sm" variant="outline" onClick={clearFilters}>
+                  Limpar Filtros
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid gap-4">
-            {products.map((product) => (
-              <Card key={product.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-sm font-mono text-muted-foreground">#{product.code}</span>
-                        <h3 className="font-semibold text-lg">{product.name}</h3>
+            {filteredProducts.map((product) => {
+              const isOutOfStock = product.quantity === 0
+              const isLowStock = product.quantity > 0 && product.quantity <= lowStockThreshold
+              
+              return (
+                <Card 
+                  key={product.id}
+                  className={
+                    isOutOfStock 
+                      ? "border-red-300 bg-red-50" 
+                      : isLowStock 
+                      ? "border-yellow-300 bg-yellow-50" 
+                      : ""
+                  }
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-sm font-mono text-muted-foreground">#{product.code}</span>
+                          <h3 className="font-semibold text-lg">{product.name}</h3>
+                          {isOutOfStock && (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-red-600 text-white">
+                              <AlertTriangle className="h-3 w-3" />
+                              SEM ESTOQUE
+                            </span>
+                          )}
+                          {isLowStock && (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-yellow-600 text-white">
+                              <AlertTriangle className="h-3 w-3" />
+                              ESTOQUE BAIXO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Quantidade em estoque: 
+                          <span 
+                            className={`font-semibold ml-1 ${
+                              isOutOfStock ? "text-red-700" : isLowStock ? "text-yellow-700" : ""
+                            }`}
+                          >
+                            {product.quantity}
+                          </span>
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Quantidade em estoque: <span className="font-semibold">{product.quantity}</span>
-                      </p>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => handleAddStock(product)}
+                          className="hover:bg-green-50 hover:text-green-600 hover:border-green-300"
+                          title="Adicionar estoque"
+                        >
+                          <PackagePlus className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => handleEdit(product)}
+                          title="Editar produto"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDelete(product)}
+                          className="hover:bg-red-50 hover:text-red-600"
+                          title="Excluir produto"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleAddStock(product)}
-                        className="hover:bg-green-50 hover:text-green-600 hover:border-green-300"
-                        title="Adicionar estoque"
-                      >
-                        <PackagePlus className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleEdit(product)}
-                        title="Editar produto"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDelete(product)}
-                        className="hover:bg-red-50 hover:text-red-600"
-                        title="Excluir produto"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         )}
       </div>
