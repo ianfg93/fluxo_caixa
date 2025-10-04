@@ -19,7 +19,7 @@ export default function AccountsPayablePage() {
   const [editingAccount, setEditingAccount] = useState<AccountPayable | null>(null)
   const [paymentAccount, setPaymentAccount] = useState<AccountPayable | null>(null)
   const [loading, setLoading] = useState(true)
-  const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "today" })
+  const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "all" })
   const { authState } = useAuth()
 
   const loadAccounts = async () => {

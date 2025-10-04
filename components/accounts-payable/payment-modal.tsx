@@ -14,17 +14,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { AccountsPayableService, type AccountPayable } from "@/lib/accounts-payable"
+import type { AccountPayable } from "@/lib/accounts-payable"
 
 interface PaymentModalProps {
   account: AccountPayable
-  onSuccess: () => void
-  onCancel: () => void
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: (paymentData: {
+    paidAmount: number
+    paidDate: Date
+    paymentMethod?: string
+    notes?: string
+  }) => Promise<void>
 }
 
-export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps) {
+export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentModalProps) {
   const [formData, setFormData] = useState({
-    paidAmount: account.amount.toString(),
     paidDate: new Date().toISOString().split("T")[0],
     paymentMethod: "",
     notes: "",
@@ -36,15 +41,16 @@ export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps
     setIsLoading(true)
 
     try {
-      await AccountsPayableService.markAsPaid(account.id, {
-        paidAmount: Number.parseFloat(formData.paidAmount),
+      await onConfirm({
+        paidAmount: account.amount, // Sempre paga o valor integral
         paidDate: new Date(formData.paidDate),
         paymentMethod: formData.paymentMethod || undefined,
         notes: formData.notes || undefined,
       })
-      onSuccess()
+      // onClose será chamado pelo handleSuccess na página
     } catch (error) {
       console.error("Erro ao marcar conta como paga:", error)
+      alert("Erro ao processar pagamento. Tente novamente.")
     } finally {
       setIsLoading(false)
     }
@@ -58,7 +64,7 @@ export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps
   }
 
   return (
-    <Dialog open={!!account} onOpenChange={onCancel}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Marcar como Pago</DialogTitle>
@@ -68,35 +74,26 @@ export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-gray-50 p-3 rounded-md">
-            <p className="text-sm font-medium">Valor original: {formatCurrency(account.amount)}</p>
-            <p className="text-sm text-muted-foreground">Vencimento: {new Date(account.dueDate).toLocaleDateString("pt-BR")}</p>
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-md">
+            <p className="text-sm font-medium text-blue-900 mb-1">Confirmação de Pagamento Integral</p>
+            <p className="text-2xl font-bold text-blue-900">{formatCurrency(account.amount)}</p>
+            <p className="text-sm text-blue-700 mt-2">
+              Vencimento: {new Date(account.dueDate).toLocaleDateString("pt-BR")}
+            </p>
+            <p className="text-xs text-blue-600 mt-2">
+              Esta conta será marcada como paga integralmente
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="paidAmount">Valor Pago (R$)</Label>
-              <Input
-                id="paidAmount"
-                value={formData.paidAmount}
-                onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
-                placeholder="0,00"
-                required
-                type="number"
-                step="0.01"
-                min="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="paidDate">Data do Pagamento</Label>
-              <Input
-                id="paidDate"
-                type="date"
-                value={formData.paidDate}
-                onChange={(e) => setFormData({ ...formData, paidDate: e.target.value })}
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="paidDate">Data do Pagamento</Label>
+            <Input
+              id="paidDate"
+              type="date"
+              value={formData.paidDate}
+              onChange={(e) => setFormData({ ...formData, paidDate: e.target.value })}
+              required
+            />
           </div>
 
           <div className="space-y-2">
@@ -104,6 +101,7 @@ export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps
             <Select
               value={formData.paymentMethod}
               onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
+              required
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a forma de pagamento" />
@@ -123,7 +121,7 @@ export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Observações do Pagamento</Label>
+            <Label htmlFor="notes">Observações do Pagamento (opcional)</Label>
             <Textarea
               id="notes"
               value={formData.notes}
@@ -134,7 +132,7 @@ export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps
           </div>
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
