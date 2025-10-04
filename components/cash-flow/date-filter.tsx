@@ -6,11 +6,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
 
 export interface DateFilter {
   period: "today" | "week" | "month" | "custom" | "all"
   startDate?: string
   endDate?: string
+  paymentMethod?: PaymentMethod | "all"
 }
 
 interface DateFilterProps {
@@ -22,8 +24,10 @@ export function DateFilter({ onFilterChange, currentFilter }: DateFilterProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<DateFilter["period"]>(currentFilter.period)
   const [customStartDate, setCustomStartDate] = useState("")
   const [customEndDate, setCustomEndDate] = useState("")
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | "all">("all")
 
-  // Aplicar filtro inicial quando o componente montar
+  const paymentMethods = CashFlowService.getPaymentMethodOptions()
+
   useEffect(() => {
     handlePeriodChange(selectedPeriod)
   }, [])
@@ -66,7 +70,22 @@ export function DateFilter({ onFilterChange, currentFilter }: DateFilterProps) {
         return
     }
 
-    onFilterChange({ period, startDate, endDate })
+    onFilterChange({ 
+      period, 
+      startDate, 
+      endDate,
+      paymentMethod: selectedPaymentMethod === "all" ? undefined : selectedPaymentMethod
+    })
+  }
+
+  const handlePaymentMethodChange = (method: PaymentMethod | "all") => {
+    setSelectedPaymentMethod(method)
+    onFilterChange({
+      period: selectedPeriod,
+      startDate: selectedPeriod === "custom" ? customStartDate : currentFilter.startDate,
+      endDate: selectedPeriod === "custom" ? customEndDate : currentFilter.endDate,
+      paymentMethod: method === "all" ? undefined : method
+    })
   }
 
   const handleCustomDateChange = () => {
@@ -74,7 +93,8 @@ export function DateFilter({ onFilterChange, currentFilter }: DateFilterProps) {
       onFilterChange({
         period: "custom",
         startDate: customStartDate,
-        endDate: customEndDate
+        endDate: customEndDate,
+        paymentMethod: selectedPaymentMethod === "all" ? undefined : selectedPaymentMethod
       })
     }
   }
@@ -87,20 +107,39 @@ export function DateFilter({ onFilterChange, currentFilter }: DateFilterProps) {
     <Card>
       <CardContent className="p-6">
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Período</Label>
-            <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Hoje</SelectItem>
-                <SelectItem value="week">Esta Semana</SelectItem>
-                <SelectItem value="month">Este Mês</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="custom">Personalizado</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Período</Label>
+              <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Hoje</SelectItem>
+                  <SelectItem value="week">Esta Semana</SelectItem>
+                  <SelectItem value="month">Este Mês</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Forma de Pagamento</Label>
+              <Select value={selectedPaymentMethod} onValueChange={handlePaymentMethodChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {paymentMethods.map((method) => (
+                    <SelectItem key={method.value} value={method.value}>
+                      {method.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {selectedPeriod === "custom" && (

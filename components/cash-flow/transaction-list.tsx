@@ -41,16 +41,24 @@ export function TransactionList({ type }: TransactionListProps) {
     let filtered = transactions
 
     if (dateFilter.startDate && dateFilter.endDate) {
-      const startDate = new Date(dateFilter.startDate)
-      const endDate = new Date(dateFilter.endDate)
-      
-      startDate.setHours(0, 0, 0, 0)
-      endDate.setHours(23, 59, 59, 999)
+      const startDate = new Date(dateFilter.startDate + 'T00:00:00')
+      const endDate = new Date(dateFilter.endDate + 'T23:59:59')
 
       filtered = transactions.filter(transaction => {
         const transactionDate = new Date(transaction.date)
-        return transactionDate >= startDate && transactionDate <= endDate
+        const transactionDateOnly = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), transactionDate.getDate())
+        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+        const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+        
+        return transactionDateOnly >= startDateOnly && transactionDateOnly <= endDateOnly
       })
+    }
+
+    // Filtrar por método de pagamento
+    if (dateFilter.paymentMethod) {
+      filtered = filtered.filter(transaction => 
+        transaction.paymentMethod === dateFilter.paymentMethod
+      )
     }
 
     setFilteredTransactions(filtered)
@@ -261,6 +269,7 @@ export function TransactionList({ type }: TransactionListProps) {
                         <Badge className={getCategoryColor(transaction.category)}>
                           {transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)}
                         </Badge>
+                        {/* ✅ NOVO: Badge de forma de pagamento */}
                         {transaction.paymentMethod && (
                           <Badge variant="outline" className="flex items-center gap-1">
                             <CreditCard className="h-3 w-3" />
