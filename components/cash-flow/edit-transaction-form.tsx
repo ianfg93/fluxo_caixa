@@ -31,6 +31,7 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
     category: transaction.category,
     date: new Date(transaction.date).toISOString().split("T")[0],
     notes: transaction.notes || "",
+    additionalNotes: "", // Campo para observações adicionais editáveis
     paymentMethod: transaction.paymentMethod || ("" as PaymentMethod | ""),
   })
   
@@ -63,6 +64,19 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
             quantities[p.product_id] = p.quantity
           })
           setProductQuantities(quantities)
+
+          // Separar observações automáticas das observações adicionais
+          if (transaction.notes) {
+            const notesText = transaction.notes
+            const productsPart = notesText.split('\n\nObservações: ')[0]
+            const additionalPart = notesText.split('\n\nObservações: ')[1] || ''
+            
+            setFormData(prev => ({
+              ...prev,
+              notes: productsPart,
+              additionalNotes: additionalPart
+            }))
+          }
         }
       }
     } catch (error) {
@@ -86,6 +100,16 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
     return originalQuantity - newQuantity
   }
 
+  // Atualizar observações automaticamente quando produtos mudam
+  useEffect(() => {
+    if (products.length > 0) {
+      const productsList = products
+        .map((p) => `${p.product_name} (Qtd: ${productQuantities[p.product_id] || 0})`)
+        .join(", ")
+      setFormData((prev) => ({ ...prev, notes: `Produtos: ${productsList}` }))
+    }
+  }, [productQuantities, products])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -108,12 +132,18 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
         }
       }
 
+      // Concatenar observações de produtos com observações adicionais
+      let finalNotes = formData.notes
+      if (formData.additionalNotes) {
+        finalNotes = finalNotes ? `${finalNotes}\n\nObservações: ${formData.additionalNotes}` : formData.additionalNotes
+      }
+
       const updateData: any = {
         description: formData.category.charAt(0).toUpperCase() + formData.category.slice(1),
         amount: Number.parseFloat(formData.amount),
         category: formData.category as TransactionCategory,
         date: new Date(formData.date),
-        notes: formData.notes || undefined,
+        notes: finalNotes || undefined,
         paymentMethod: formData.paymentMethod || undefined,
       }
 
@@ -269,15 +299,41 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Informações adicionais sobre a transação"
-                  rows={3}
-                />
+              {/* Observações divididas em duas partes */}
+              <div className="space-y-4">
+                {/* Parte 1: Lista de produtos (readonly) */}
+                {products.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="productsNotes">Produtos da Venda</Label>
+                    <Textarea
+                      id="productsNotes"
+                      value={formData.notes}
+                      readOnly
+                      className="bg-slate-100 cursor-not-allowed whitespace-pre-wrap"
+                      rows={2}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Lista automática dos produtos (atualizada conforme você altera as quantidades)
+                    </p>
+                  </div>
+                )}
+
+                {/* Parte 2: Observações livres (editável) */}
+                <div className="space-y-2">
+                  <Label htmlFor="additionalNotes">
+                    Observações Adicionais {!products.length && "(opcional)"}
+                  </Label>
+                  <Textarea
+                    id="additionalNotes"
+                    value={formData.additionalNotes}
+                    onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
+                    placeholder="Adicione informações extras: nome do cliente, forma de entrega, etc."
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Campo livre para você adicionar qualquer informação adicional
+                  </p>
+                </div>
               </div>
             </div>
           ) : (
@@ -350,15 +406,41 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Informações adicionais sobre a transação"
-                  rows={3}
-                />
+              {/* Observações divididas em duas partes */}
+              <div className="space-y-4">
+                {/* Parte 1: Lista de produtos (readonly) - só aparece se houver produtos */}
+                {products.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="productsNotesExit">Produtos da Venda</Label>
+                    <Textarea
+                      id="productsNotesExit"
+                      value={formData.notes}
+                      readOnly
+                      className="bg-slate-100 cursor-not-allowed"
+                      rows={2}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Lista automática dos produtos
+                    </p>
+                  </div>
+                )}
+
+                {/* Parte 2: Observações livres (editável) */}
+                <div className="space-y-2">
+                  <Label htmlFor="additionalNotesExit">
+                    Observações {!products.length && "(opcional)"}
+                  </Label>
+                  <Textarea
+                    id="additionalNotesExit"
+                    value={formData.additionalNotes}
+                    onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
+                    placeholder="Informações adicionais sobre a transação"
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Campo livre para adicionar informações adicionais
+                  </p>
+                </div>
               </div>
             </div>
           )}

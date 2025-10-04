@@ -30,6 +30,7 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     date: new Date().toISOString().split("T")[0],
     paymentMethod: "" as PaymentMethod | "",
     notes: "",
+    additionalNotes: "", // Novo campo para observações livres
   })
   
   const [products, setProducts] = useState<Product[]>([])
@@ -141,6 +142,15 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
         date: new Date(formData.date),
         paymentMethod: formData.paymentMethod || undefined,
         notes: formData.notes || undefined,
+      }
+
+      // Adicionar observações adicionais ao final das observações de produtos
+      if (formData.additionalNotes) {
+        if (transactionData.notes) {
+          transactionData.notes += `\n\nObservações: ${formData.additionalNotes}`
+        } else {
+          transactionData.notes = formData.additionalNotes
+        }
       }
 
       // Se houver produtos selecionados, adicionar ao payload
@@ -317,22 +327,41 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Observações</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Informações adicionais sobre a venda"
-              rows={3}
-              readOnly={selectedProducts.length > 0}
-              className={selectedProducts.length > 0 ? "bg-slate-100" : ""}
-            />
+          {/* Observações divididas em duas partes */}
+          <div className="space-y-4">
+            {/* Parte 1: Lista de produtos (readonly) */}
             {selectedProducts.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                As observações são geradas automaticamente com base nos produtos selecionados
-              </p>
+              <div className="space-y-2">
+                <Label htmlFor="productsNotes">Produtos da Venda</Label>
+                <Textarea
+                  id="productsNotes"
+                  value={formData.notes}
+                  readOnly
+                  className="bg-slate-100 cursor-not-allowed whitespace-pre-wrap"
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Lista automática dos produtos selecionados
+                </p>
+              </div>
             )}
+
+            {/* Parte 2: Observações livres (editável) */}
+            <div className="space-y-2">
+              <Label htmlFor="additionalNotes">
+                Observações Adicionais {!selectedProducts.length && "(opcional)"}
+              </Label>
+              <Textarea
+                id="additionalNotes"
+                value={formData.additionalNotes}
+                onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
+                placeholder="Adicione informações extras: nome do cliente, forma de entrega, etc."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Campo livre para você adicionar qualquer informação adicional
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
