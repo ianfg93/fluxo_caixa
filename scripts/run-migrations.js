@@ -40,16 +40,17 @@ async function runMigrations() {
     // Lista completa de migrations na ordem correta
     const migrationFiles = [
       // "000_drop_all_tables.sql",
-      "001_create_user_types_table.sql",
-      "002_create_companies_table.sql", 
-      "003_create_users_table.sql",
-      "004_create_cash_flow_table.sql",
-      "005_create_accounts_payable_table.sql",
-      "006_create_notifications_table.sql",
-      "007_create_file_uploads_table.sql",
-      "008_create_functions_and_triggers.sql",
-      "009_seed_initial_data.sql",
-      "010_create_migrations_control.sql"
+      // "001_create_user_types_table.sql",
+      // "002_create_companies_table.sql", 
+      // "003_create_users_table.sql",
+      // "004_create_cash_flow_table.sql",
+      // "005_create_accounts_payable_table.sql",
+      // "006_create_notifications_table.sql",
+      // "007_create_file_uploads_table.sql",
+      // "008_create_functions_and_triggers.sql",
+      // "009_seed_initial_data.sql",
+      // "010_create_migrations_control.sql",
+      "011_create_products_table.sql"
     ]
 
     let executedCount = 0

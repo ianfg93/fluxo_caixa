@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2 } from "lucide-react"
+import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useAuth } from "@/hooks/use-auth"
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["master", "administrator"] },
   { name: "Empresas", href: "/companies", icon: Building2, roles: ["master"] },
+  { name: "Estoque", href: "/products", icon: Package, roles: ["master", "administrator"] },
   { name: "Entradas", href: "/cash-flow/entries", icon: TrendingUp, roles: ["administrator", "operational"] },
   { name: "Saídas", href: "/cash-flow/exits", icon: TrendingDown, roles: ["administrator", "operational"] },
   { name: "Contas a Pagar", href: "/accounts-payable", icon: CreditCard, roles: ["administrator"] },

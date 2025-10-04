@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,6 +9,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CashFlowService, type CashFlowTransaction, type TransactionCategory, type PaymentMethod } from "@/lib/cash-flow"
+import { Package, AlertTriangle } from "lucide-react"
+import { ApiClient } from "@/lib/api-client"
+
+interface TransactionProduct {
+  product_id: string
+  product_name: string
+  quantity: number
+  current_stock: number
+}
 
 interface EditTransactionFormProps {
   transaction: CashFlowTransaction
@@ -24,11 +33,58 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
     notes: transaction.notes || "",
     paymentMethod: transaction.paymentMethod || ("" as PaymentMethod | ""),
   })
+  
+  const [products, setProducts] = useState<TransactionProduct[]>([])
+  const [productQuantities, setProductQuantities] = useState<Record<string, number>>({})
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const categoryOptions = CashFlowService.getCategoryOptions(transaction.type)
   const paymentMethods = CashFlowService.getPaymentMethodOptions()
+
+  // Carregar produtos da transação
+  useEffect(() => {
+    loadTransactionProducts()
+  }, [transaction.id])
+
+  const loadTransactionProducts = async () => {
+    setIsLoadingProducts(true)
+    try {
+      const response = await ApiClient.get(`/api/cash-flow/${transaction.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.products && data.products.length > 0) {
+          setProducts(data.products)
+          
+          // Inicializar quantidades
+          const quantities: Record<string, number> = {}
+          data.products.forEach((p: TransactionProduct) => {
+            quantities[p.product_id] = p.quantity
+          })
+          setProductQuantities(quantities)
+        }
+      }
+    } catch (error) {
+      console.error("Error loading products:", error)
+    } finally {
+      setIsLoadingProducts(false)
+    }
+  }
+
+  const handleProductQuantityChange = (productId: string, newQuantity: number) => {
+    if (newQuantity < 0) return
+    
+    setProductQuantities({
+      ...productQuantities,
+      [productId]: newQuantity
+    })
+  }
+
+  const getStockAdjustment = (productId: string, originalQuantity: number): number => {
+    const newQuantity = productQuantities[productId] || 0
+    return originalQuantity - newQuantity
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,14 +92,40 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
     setError(null)
 
     try {
-      const result = await CashFlowService.updateTransaction(transaction.id, {
+      // Validar estoque antes de enviar
+      for (const product of products) {
+        const newQuantity = productQuantities[product.product_id]
+        const adjustment = getStockAdjustment(product.product_id, product.quantity)
+        
+        // Se estiver aumentando a venda (adjustment negativo), verificar estoque
+        if (adjustment < 0) {
+          const additionalUnits = Math.abs(adjustment)
+          if (product.current_stock < additionalUnits) {
+            setError(`Estoque insuficiente para ${product.product_name}. Disponível: ${product.current_stock}`)
+            setIsLoading(false)
+            return
+          }
+        }
+      }
+
+      const updateData: any = {
         description: formData.category.charAt(0).toUpperCase() + formData.category.slice(1),
         amount: Number.parseFloat(formData.amount),
         category: formData.category as TransactionCategory,
         date: new Date(formData.date),
         notes: formData.notes || undefined,
         paymentMethod: formData.paymentMethod || undefined,
-      })
+      }
+
+      // Adicionar produtos se houver
+      if (products.length > 0) {
+        updateData.products = products.map(p => ({
+          productId: p.product_id,
+          quantity: productQuantities[p.product_id]
+        }))
+      }
+
+      const result = await CashFlowService.updateTransaction(transaction.id, updateData)
 
       if (result) {
         onSuccess()
@@ -69,6 +151,72 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
               {error}
+            </div>
+          )}
+
+          {/* Seção de Produtos (se houver) */}
+          {products.length > 0 && (
+            <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-blue-600" />
+                <h3 className="font-semibold">Produtos da Venda</h3>
+              </div>
+
+              {isLoadingProducts ? (
+                <p className="text-sm text-muted-foreground">Carregando produtos...</p>
+              ) : (
+                <div className="space-y-3">
+                  {products.map((product) => {
+                    const originalQty = product.quantity
+                    const newQty = productQuantities[product.product_id] || 0
+                    const adjustment = getStockAdjustment(product.product_id, originalQty)
+                    
+                    return (
+                      <div key={product.product_id} className="bg-white p-4 rounded-md border">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <p className="font-medium">{product.product_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Estoque atual: {product.current_stock} unidades
+                            </p>
+                          </div>
+                          
+                          <div className="w-32">
+                            <Label className="text-xs">Quantidade</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={newQty}
+                              onChange={(e) => handleProductQuantityChange(
+                                product.product_id, 
+                                parseInt(e.target.value) || 0
+                              )}
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                        
+                        {adjustment !== 0 && (
+                          <div className="mt-3 flex items-start gap-2 text-sm">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                            <p className="text-amber-700">
+                              {adjustment > 0 ? (
+                                <>
+                                  <strong>Devolução:</strong> {adjustment} {adjustment === 1 ? 'unidade será devolvida' : 'unidades serão devolvidas'} ao estoque
+                                </>
+                              ) : (
+                                <>
+                                  <strong>Retirada:</strong> {Math.abs(adjustment)} {Math.abs(adjustment) === 1 ? 'unidade será retirada' : 'unidades serão retiradas'} do estoque
+                                </>
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -216,7 +364,7 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
           )}
 
           <div className="flex gap-3 pt-4">
-            <Button type="submit" disabled={isLoading} className="flex-1">
+            <Button type="submit" disabled={isLoading || isLoadingProducts} className="flex-1">
               {isLoading ? "Salvando..." : "Salvar Alterações"}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
