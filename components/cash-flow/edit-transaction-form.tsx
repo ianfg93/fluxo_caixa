@@ -1,14 +1,14 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CashFlowService, type CashFlowTransaction, type TransactionCategory } from "@/lib/cash-flow"
+import { CashFlowService, type CashFlowTransaction, type TransactionCategory, type PaymentMethod } from "@/lib/cash-flow"
 
 interface EditTransactionFormProps {
   transaction: CashFlowTransaction
@@ -18,16 +18,17 @@ interface EditTransactionFormProps {
 
 export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTransactionFormProps) {
   const [formData, setFormData] = useState({
-    description: transaction.description,
     amount: transaction.amount.toString(),
     category: transaction.category,
     date: new Date(transaction.date).toISOString().split("T")[0],
     notes: transaction.notes || "",
+    paymentMethod: transaction.paymentMethod || ("" as PaymentMethod | ""),
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const categoryOptions = CashFlowService.getCategoryOptions(transaction.type)
+  const paymentMethods = CashFlowService.getPaymentMethodOptions()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,11 +37,12 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
 
     try {
       const result = await CashFlowService.updateTransaction(transaction.id, {
-        description: formData.description,
+        description: formData.category.charAt(0).toUpperCase() + formData.category.slice(1),
         amount: Number.parseFloat(formData.amount),
         category: formData.category as TransactionCategory,
         date: new Date(formData.date),
         notes: formData.notes || undefined,
+        paymentMethod: formData.paymentMethod || undefined,
       })
 
       if (result) {
@@ -70,74 +72,146 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Input
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Descreva a transação"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="amount">Valor (R$)</Label>
-              <Input
-                id="amount"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                placeholder="0,00"
-                required
-                type="number"
-                step="0.01"
-                min="0"
-              />
-            </div>
-          </div>
+          {transaction.type === "entry" ? (
+            // Layout para ENTRADA
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Valor (R$)</Label>
+                  <Input
+                    id="amount"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    placeholder="0,00"
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">Forma de Pagamento</Label>
+                  <Select
+                    value={formData.paymentMethod}
+                    onValueChange={(value) => setFormData({ ...formData, paymentMethod: value as PaymentMethod })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method.value} value={method.value}>
+                          {method.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="category">Categoria</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData({ ...formData, category: value as TransactionCategory })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoryOptions.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="date">Data</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                required
-              />
-            </div>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="date">Data</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                />
+              </div>
 
-          {transaction.type === "exit" && (
-            <div className="space-y-2">
-              <Label htmlFor="notes">Observações</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Informações adicionais sobre a transação"
-                rows={3}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="notes">Observações</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Informações adicionais sobre a transação"
+                  rows={3}
+                />
+              </div>
+            </div>
+          ) : (
+            // Layout para SAÍDA
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Valor (R$)</Label>
+                  <Input
+                    id="amount"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    placeholder="0,00"
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Categoria</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value as TransactionCategory })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryOptions.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category.charAt(0).toUpperCase() + category.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">Forma de Pagamento</Label>
+                  <Select
+                    value={formData.paymentMethod}
+                    onValueChange={(value) => setFormData({ ...formData, paymentMethod: value as PaymentMethod })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method.value} value={method.value}>
+                          {method.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date">Data</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Observações</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Informações adicionais sobre a transação"
+                  rows={3}
+                />
+              </div>
             </div>
           )}
 

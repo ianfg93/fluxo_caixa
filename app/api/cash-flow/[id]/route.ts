@@ -19,6 +19,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const updates = await request.json()
     const { id } = params
 
+    // Validar payment_method se fornecido
+    if (updates.paymentMethod && !['credito', 'debito', 'pix', 'dinheiro'].includes(updates.paymentMethod)) {
+      return NextResponse.json({ error: "Forma de pagamento inválida" }, { status: 400 })
+    }
+
     let checkQuery = `
       SELECT id, created_by, company_id 
       FROM cash_flow_transactions 
@@ -45,8 +50,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const result = await query(
       `UPDATE cash_flow_transactions 
-       SET description = $1, amount = $2, category = $3, transaction_date = $4, notes = $5, updated_at = NOW()
-       WHERE id = $6 
+       SET description = $1, amount = $2, category = $3, transaction_date = $4, notes = $5, payment_method = $6, updated_at = NOW()
+       WHERE id = $7 
        RETURNING *`,
       [
         updates.description,
@@ -54,6 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         updates.category,
         updates.date,
         updates.notes,
+        updates.paymentMethod || null,
         id,
       ],
     )
@@ -69,6 +75,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       createdBy: row.created_by,
       createdAt: row.created_at,
       notes: row.notes,
+      paymentMethod: row.payment_method,
     }
 
     return NextResponse.json({ transaction: updatedTransaction })

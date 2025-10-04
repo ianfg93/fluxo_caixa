@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, TrendingUp, TrendingDown } from "lucide-react"
+import { Plus, Edit, Trash2, TrendingUp, TrendingDown, CreditCard } from "lucide-react"
 import { CashFlowService, type CashFlowTransaction, type TransactionType } from "@/lib/cash-flow"
 import { TransactionForm } from "./transaction-form"
 import { EntryForm } from "./entry-form"
@@ -22,7 +22,7 @@ export function TransactionList({ type }: TransactionListProps) {
   const [showForm, setShowForm] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<CashFlowTransaction | null>(null)
   const [loading, setLoading] = useState(true)
-  const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "today" })
+  const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "all" })
   const { authState } = useAuth()
 
   const loadTransactions = async () => {
@@ -37,7 +37,6 @@ export function TransactionList({ type }: TransactionListProps) {
     }
   }
 
-  // Filtrar transações quando os dados ou filtro mudam
   useEffect(() => {
     let filtered = transactions
 
@@ -45,7 +44,6 @@ export function TransactionList({ type }: TransactionListProps) {
       const startDate = new Date(dateFilter.startDate)
       const endDate = new Date(dateFilter.endDate)
       
-      // Ajustar para incluir o dia inteiro
       startDate.setHours(0, 0, 0, 0)
       endDate.setHours(23, 59, 59, 999)
 
@@ -68,7 +66,6 @@ export function TransactionList({ type }: TransactionListProps) {
     setEditingTransaction(null)
   }
 
-  // ✅ CORRIGIDO: Verificar permissões baseadas nos roles reais
   const canEdit = () => {
     if (!authState.user) return false
     const role = authState.user.role
@@ -87,10 +84,7 @@ export function TransactionList({ type }: TransactionListProps) {
     const isOwner = transaction.createdBy === authState.user.name || 
                    transaction.createdBy === authState.user.id
     
-    // Master e administrator podem editar qualquer coisa
     if (role === 'master' || role === 'administrator') return true
-    
-    // Operational só pode editar próprios registros
     if (role === 'operational' && isOwner) return true
     
     return false
@@ -156,7 +150,6 @@ export function TransactionList({ type }: TransactionListProps) {
     return colors[category] || "bg-gray-100 text-gray-800"
   }
 
-  // Calcular totais do período filtrado
   const getTotalAmount = () => {
     return filteredTransactions.reduce((total, transaction) => total + transaction.amount, 0)
   }
@@ -165,7 +158,6 @@ export function TransactionList({ type }: TransactionListProps) {
     return filteredTransactions.length
   }
 
-  // Mostrar formulário de edição
   if (editingTransaction) {
     return (
       <EditTransactionForm 
@@ -176,7 +168,6 @@ export function TransactionList({ type }: TransactionListProps) {
     )
   }
 
-  // Mostrar formulário de nova transação
   if (showForm) {
     if (type === "entry") {
       return <EntryForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
@@ -207,9 +198,7 @@ export function TransactionList({ type }: TransactionListProps) {
         </Button>
       </div>
 
-      {/* Filtros de Data e Resumo lado a lado */}
       <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
-        {/* Filtro de Data - ocupa mais espaço */}
         <div className="flex-1 lg:flex-[2]">
           <DateFilter 
             onFilterChange={setDateFilter}
@@ -217,7 +206,6 @@ export function TransactionList({ type }: TransactionListProps) {
           />
         </div>
 
-        {/* Resumo do período - ocupa menos espaço */}
         {getTransactionCount() > 0 && (
           <div className="lg:flex-[1]">
             <Card className="min-h-[140px]">
@@ -268,11 +256,17 @@ export function TransactionList({ type }: TransactionListProps) {
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="font-semibold">{transaction.description}</h3>
                         <Badge className={getCategoryColor(transaction.category)}>
                           {transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)}
                         </Badge>
+                        {transaction.paymentMethod && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <CreditCard className="h-3 w-3" />
+                            {CashFlowService.formatPaymentMethod(transaction.paymentMethod)}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span>Data: {formatDate(transaction.date)}</span>
@@ -286,7 +280,6 @@ export function TransactionList({ type }: TransactionListProps) {
                           {type === "entry" ? "+" : "-"} {formatCurrency(transaction.amount)}
                         </p>
                       </div>
-                      {/* ✅ CORRIGIDO: Mostrar botões baseados nas permissões corretas */}
                       {(canEditOwn(transaction) || canDelete()) && (
                         <div className="flex gap-2">
                           {canEditOwn(transaction) && (

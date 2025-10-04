@@ -1,13 +1,14 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { CashFlowService } from "@/lib/cash-flow"
+import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
+import { Textarea } from "../ui/textarea"
 
 interface EntryFormProps {
   onSuccess: () => void
@@ -16,12 +17,15 @@ interface EntryFormProps {
 
 export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
   const [formData, setFormData] = useState({
-    description: "",
     amount: "",
     date: new Date().toISOString().split("T")[0],
+    paymentMethod: "" as PaymentMethod | "",
+    notes: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const paymentMethods = CashFlowService.getPaymentMethodOptions()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,13 +33,14 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     setError(null)
 
     try {
-      // ✅ CORRIGIDO: Remover createdBy - será pego automaticamente do token
       const result = await CashFlowService.addTransaction({
         type: "entry",
-        description: formData.description,
+        description: "Venda",
         amount: Number.parseFloat(formData.amount),
-        category: "vendas", // Categoria fixa para entradas simples
+        category: "vendas",
         date: new Date(formData.date),
+        paymentMethod: formData.paymentMethod || undefined,
+        notes: formData.notes || undefined,
       })
 
       if (result) {
@@ -65,29 +70,40 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição da Venda</Label>
-            <Input
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Ex: Venda de produto X para cliente Y"
-              required
-            />
-          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Valor (R$)</Label>
+              <Input
+                id="amount"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                placeholder="0,00"
+                required
+                type="number"
+                step="0.01"
+                min="0"
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="amount">Valor (R$)</Label>
-            <Input
-              id="amount"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              placeholder="0,00"
-              required
-              type="number"
-              step="0.01"
-              min="0"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Forma de Pagamento</Label>
+              <Select
+                value={formData.paymentMethod}
+                onValueChange={(value) => setFormData({ ...formData, paymentMethod: value as PaymentMethod })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((method) => (
+                    <SelectItem key={method.value} value={method.value}>
+                      {method.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -98,6 +114,17 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Observações (opcional)</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Informações adicionais sobre a venda"
+              rows={3}
             />
           </div>
 

@@ -1,6 +1,7 @@
 import { ApiClient } from './api-client'
 
 export type TransactionType = "entry" | "exit"
+
 export type TransactionCategory =
   | "vendas"
   | "servicos"
@@ -13,6 +14,9 @@ export type TransactionCategory =
   | "marketing"
   | "outros"
 
+// ✅ NOVO: Tipo para métodos de pagamento
+export type PaymentMethod = "credito" | "debito" | "pix" | "dinheiro"
+
 export interface CashFlowTransaction {
   id: string
   type: TransactionType
@@ -24,22 +28,47 @@ export interface CashFlowTransaction {
   createdAt: Date
   attachments?: string[]
   notes?: string
+  paymentMethod?: PaymentMethod // ✅ NOVO: Campo de método de pagamento
 }
 
 export class CashFlowService {
+  // ✅ NOVO: Método para obter opções de pagamento
+  static getPaymentMethodOptions(): { value: PaymentMethod; label: string }[] {
+    return [
+      { value: "dinheiro", label: "Dinheiro" },
+      { value: "pix", label: "PIX" },
+      { value: "debito", label: "Débito" },
+      { value: "credito", label: "Crédito" },
+    ]
+  }
+
+  // ✅ NOVO: Método para formatar o nome do método de pagamento
+  static formatPaymentMethod(method?: PaymentMethod): string {
+    if (!method) return "Não informado"
+    
+    const methods: Record<PaymentMethod, string> = {
+      dinheiro: "Dinheiro",
+      pix: "PIX",
+      debito: "Débito",
+      credito: "Crédito",
+    }
+    
+    return methods[method] || method
+  }
+
   static async getTransactions(type?: TransactionType, companyId?: string): Promise<CashFlowTransaction[]> {
     try {
       let url = "/api/cash-flow"
       const params = new URLSearchParams()
-      
+     
       if (type) {
         params.append("type", type)
       }
-      
+     
       if (companyId) {
         params.append("company", companyId)
       }
-      
+     
       if (params.toString()) {
         url += `?${params.toString()}`
       }
@@ -51,6 +80,7 @@ export class CashFlowService {
       }
 
       const data = await response.json()
+
       return data.transactions.map((t: any) => ({
         ...t,
         date: new Date(t.date),
@@ -73,6 +103,7 @@ export class CashFlowService {
       }
 
       const data = await response.json()
+
       return {
         ...data.transaction,
         date: new Date(data.transaction.date),
@@ -96,6 +127,7 @@ export class CashFlowService {
       }
 
       const data = await response.json()
+
       return {
         ...data.transaction,
         date: new Date(data.transaction.date),
@@ -120,11 +152,11 @@ export class CashFlowService {
   static async getBalance(companyId?: string): Promise<{ total: number; entries: number; exits: number }> {
     try {
       let url = "/api/cash-flow/balance"
-      
+     
       if (companyId) {
         url += `?company=${companyId}`
       }
-      
+     
       const response = await ApiClient.get(url)
 
       if (!response.ok) {

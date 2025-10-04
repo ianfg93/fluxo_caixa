@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         cft.category,
         cft.transaction_date,
         cft.notes,
+        cft.payment_method,
         cft.created_by,
         cft.created_at,
         u.name as created_by_name
@@ -65,6 +66,7 @@ export async function GET(request: NextRequest) {
       createdBy: row.created_by_name || 'Usuário não encontrado',
       createdAt: row.created_at,
       notes: row.notes,
+      paymentMethod: row.payment_method,
     }))
 
     return NextResponse.json({ transactions })
@@ -86,10 +88,15 @@ export async function POST(request: NextRequest) {
 
     const transaction = await request.json()
 
+    // Validar payment_method se fornecido
+    if (transaction.paymentMethod && !['credito', 'debito', 'pix', 'dinheiro'].includes(transaction.paymentMethod)) {
+      return NextResponse.json({ error: "Forma de pagamento inválida" }, { status: 400 })
+    }
+
     const result = await query(
       `INSERT INTO cash_flow_transactions 
-       (company_id, type, description, amount, category, transaction_date, created_by, notes) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+       (company_id, type, description, amount, category, transaction_date, created_by, notes, payment_method) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
        RETURNING *`,
       [
         user.companyId,
@@ -100,6 +107,7 @@ export async function POST(request: NextRequest) {
         transaction.date,
         user.id,
         transaction.notes || null,
+        transaction.paymentMethod || null,
       ],
     )
 
@@ -114,6 +122,7 @@ export async function POST(request: NextRequest) {
       createdBy: user.name,
       createdAt: row.created_at,
       notes: row.notes,
+      paymentMethod: row.payment_method,
     }
 
     return NextResponse.json({ transaction: newTransaction })
