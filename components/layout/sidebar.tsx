@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
+import { Truck } from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["master", "administrator"] },
@@ -17,6 +18,7 @@ const navigation = [
   { name: "Saídas", href: "/cash-flow/exits", icon: TrendingDown, roles: ["administrator", "operational"] },
   { name: "Contas a Pagar", href: "/accounts-payable", icon: CreditCard, roles: ["administrator"] },
   { name: "Usuários", href: "/users", icon: Users, roles: ["master", "administrator"] },
+  { name: "Fornecedores", href: "/vendors", icon: Truck, roles: ["master", "administrator"] },
   { name: "Configurações", href: "/settings", icon: Settings, roles: ["master", "administrator", "operational"] },
 ]
 
