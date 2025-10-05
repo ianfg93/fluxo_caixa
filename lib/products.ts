@@ -4,6 +4,7 @@ export interface Product {
   id: string
   code: number
   name: string
+  price: number  // ← NOVO: Preço unitário do produto
   quantity: number
   companyId: string
   createdAt: Date
@@ -25,19 +26,15 @@ export class ProductService {
   static async getProducts(companyId?: string): Promise<Product[]> {
     try {
       let url = "/api/products"
-      
+     
       if (companyId) {
         url += `?company=${companyId}`
       }
-
       const response = await ApiClient.get(url)
-
       if (!response.ok) {
         throw new Error("Failed to fetch products")
       }
-
       const data = await response.json()
-
       return data.products.map((p: any) => ({
         ...p,
         createdAt: new Date(p.createdAt),
@@ -52,13 +49,10 @@ export class ProductService {
   static async getProduct(id: string): Promise<Product | null> {
     try {
       const response = await ApiClient.get(`/api/products/${id}`)
-
       if (!response.ok) {
         throw new Error("Failed to fetch product")
       }
-
       const data = await response.json()
-
       return {
         ...data.product,
         createdAt: new Date(data.product.createdAt),
@@ -75,13 +69,10 @@ export class ProductService {
   ): Promise<Product | null> {
     try {
       const response = await ApiClient.post("/api/products", product)
-
       if (!response.ok) {
         throw new Error("Failed to add product")
       }
-
       const data = await response.json()
-
       return {
         ...data.product,
         createdAt: new Date(data.product.createdAt),
@@ -95,17 +86,14 @@ export class ProductService {
 
   static async updateProduct(
     id: string,
-    updates: Partial<Pick<Product, "name" | "quantity">>
+    updates: Partial<Pick<Product, "name" | "quantity" | "price">>  // ← Adicionado price
   ): Promise<Product | null> {
     try {
       const response = await ApiClient.put(`/api/products/${id}`, updates)
-
       if (!response.ok) {
         throw new Error("Failed to update product")
       }
-
       const data = await response.json()
-
       return {
         ...data.product,
         createdAt: new Date(data.product.createdAt),
@@ -130,13 +118,10 @@ export class ProductService {
   static async getStockMovements(productId: string): Promise<StockMovement[]> {
     try {
       const response = await ApiClient.get(`/api/products/${productId}/movements`)
-
       if (!response.ok) {
         throw new Error("Failed to fetch stock movements")
       }
-
       const data = await response.json()
-
       return data.movements.map((m: any) => ({
         ...m,
         createdAt: new Date(m.createdAt),
@@ -145,5 +130,13 @@ export class ProductService {
       console.error("Get stock movements error:", error)
       return []
     }
+  }
+
+  // ← NOVO: Método helper para formatar preço
+  static formatPrice(price: number): string {
+    return price.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    })
   }
 }

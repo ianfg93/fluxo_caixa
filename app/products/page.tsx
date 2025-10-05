@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit, Trash2, Package, PackagePlus, Search, X, AlertTriangle } from "lucide-react"
+import { Plus, Edit, Trash2, Package, PackagePlus, Search, X, AlertTriangle, DollarSign } from "lucide-react"
 import { ProductService, type Product } from "@/lib/products"
 import { useAuth } from "@/hooks/use-auth"
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout"
@@ -19,14 +19,14 @@ export default function ProductsPage() {
   const [showAddStockForm, setShowAddStockForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [addingStockProduct, setAddingStockProduct] = useState<Product | null>(null)
-  const [formData, setFormData] = useState({ name: "", quantity: "0" })
+  const [formData, setFormData] = useState({ name: "", quantity: "0", price: "0.00" })
   const [addStockQuantity, setAddStockQuantity] = useState("0")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { authState } = useAuth()
 
   // Estados de filtros
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState<"code" | "name" | "quantity-asc" | "quantity-desc">("code")
+  const [sortBy, setSortBy] = useState<"code" | "name" | "quantity-asc" | "quantity-desc" | "price-asc" | "price-desc">("code")
   const [showOnlyLowStock, setShowOnlyLowStock] = useState(false)
   const [showOnlyOutOfStock, setShowOnlyOutOfStock] = useState(false)
   const [lowStockThreshold, setLowStockThreshold] = useState(5)
@@ -42,24 +42,41 @@ export default function ProductsPage() {
     setLoading(false)
   }
 
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
+      const price = parseFloat(formData.price)
+      
+      if (price < 0) {
+        alert("O preço não pode ser negativo")
+        setIsSubmitting(false)
+        return
+      }
+
       if (editingProduct) {
         await ProductService.updateProduct(editingProduct.id, {
           name: formData.name,
           quantity: parseInt(formData.quantity),
+          price: price,
         })
       } else {
         await ProductService.addProduct({
           name: formData.name,
           quantity: parseInt(formData.quantity),
+          price: price,
         })
       }
 
-      setFormData({ name: "", quantity: "0" })
+      setFormData({ name: "", quantity: "0", price: "0.00" })
       setShowForm(false)
       setEditingProduct(null)
       loadProducts()
@@ -74,8 +91,8 @@ export default function ProductsPage() {
   const handleAddStock = (product: Product) => {
     setAddingStockProduct(product)
     setAddStockQuantity("0")
-    setShowAddStockForm(true)
     setShowForm(false)
+    setEditingProduct(null) // Fechar edição se estiver aberta
   }
 
   const handleAddStockSubmit = async (e: React.FormEvent) => {
@@ -111,13 +128,14 @@ export default function ProductsPage() {
   }
 
   const handleEdit = (product: Product) => {
+    setShowAddStockForm(false)
     setEditingProduct(product)
     setFormData({
       name: product.name,
       quantity: product.quantity.toString(),
+      price: (Number(product.price) || 0).toFixed(2),
     })
-    setShowForm(true)
-    setShowAddStockForm(false)
+    setShowForm(false) // Não abrir o form do topo
   }
 
   const handleDelete = async (product: Product) => {
@@ -134,7 +152,7 @@ export default function ProductsPage() {
   }
 
   const handleCancel = () => {
-    setFormData({ name: "", quantity: "0" })
+    setFormData({ name: "", quantity: "0", price: "0.00" })
     setShowForm(false)
     setEditingProduct(null)
   }
@@ -179,6 +197,10 @@ export default function ProductsPage() {
           return a.quantity - b.quantity
         case "quantity-desc":
           return b.quantity - a.quantity
+        case "price-asc":
+          return a.price - b.price
+        case "price-desc":
+          return b.price - a.price
         default:
           return 0
       }
@@ -217,7 +239,7 @@ export default function ProductsPage() {
             <Package className="h-6 w-6 text-blue-600" />
             <div>
               <h1 className="text-2xl font-bold">Gerenciamento de Estoque</h1>
-              <p className="text-muted-foreground">Controle seus produtos e quantidades</p>
+              <p className="text-muted-foreground">Controle seus produtos, quantidades e preços</p>
             </div>
           </div>
           {!showForm && !showAddStockForm && (
@@ -228,16 +250,14 @@ export default function ProductsPage() {
           )}
         </div>
 
-        {showForm && (
+        {showForm && !editingProduct && (
           <Card>
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4">
-                {editingProduct ? "Editar Produto" : "Novo Produto"}
-              </h3>
+              <h3 className="text-lg font-semibold mb-4">Novo Produto</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nome do Produto</Label>
+                    <Label htmlFor="name">Nome do Produto *</Label>
                     <Input
                       id="name"
                       value={formData.name}
@@ -247,7 +267,24 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="quantity">Quantidade</Label>
+                    <Label htmlFor="price">Preço Unitário (R$) *</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder="0,00"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity">Quantidade Inicial *</Label>
                     <Input
                       id="quantity"
                       type="number"
@@ -271,45 +308,7 @@ export default function ProductsPage() {
           </Card>
         )}
 
-        {showAddStockForm && addingStockProduct && (
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-2">Adicionar Estoque</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Produto: <strong>{addingStockProduct.name}</strong> | 
-                Estoque atual: <strong>{addingStockProduct.quantity}</strong>
-              </p>
-              <form onSubmit={handleAddStockSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="addQuantity">Quantidade a Adicionar</Label>
-                  <Input
-                    id="addQuantity"
-                    type="number"
-                    min="1"
-                    value={addStockQuantity}
-                    onChange={(e) => setAddStockQuantity(e.target.value)}
-                    placeholder="Digite a quantidade"
-                    required
-                    autoFocus
-                  />
-                  {parseInt(addStockQuantity) > 0 && (
-                    <p className="text-sm text-green-700">
-                      Novo estoque será: <strong>{addingStockProduct.quantity + parseInt(addStockQuantity)}</strong>
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-3">
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Adicionando..." : "Confirmar Adição"}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleCancelAddStock}>
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+
 
         {/* Barra de Filtros */}
         {!loading && products.length > 0 && (
@@ -358,6 +357,8 @@ export default function ProductsPage() {
                         <SelectItem value="name">Nome (A-Z)</SelectItem>
                         <SelectItem value="quantity-asc">Menor Estoque</SelectItem>
                         <SelectItem value="quantity-desc">Maior Estoque</SelectItem>
+                        <SelectItem value="price-asc">Menor Preço</SelectItem>
+                        <SelectItem value="price-desc">Maior Preço</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -450,6 +451,8 @@ export default function ProductsPage() {
             {filteredProducts.map((product) => {
               const isOutOfStock = product.quantity === 0
               const isLowStock = product.quantity > 0 && product.quantity <= lowStockThreshold
+              const isEditing = editingProduct?.id === product.id
+              const isAddingStock = addingStockProduct?.id === product.id
               
               return (
                 <Card 
@@ -459,68 +462,177 @@ export default function ProductsPage() {
                       ? "border-red-300 bg-red-50" 
                       : isLowStock 
                       ? "border-yellow-300 bg-yellow-50" 
+                      : isEditing
+                      ? "border-blue-300 bg-blue-50"
+                      : isAddingStock
+                      ? "border-green-300 bg-green-50"
                       : ""
                   }
                 >
                   <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="text-sm font-mono text-muted-foreground">#{product.code}</span>
-                          <h3 className="font-semibold text-lg">{product.name}</h3>
-                          {isOutOfStock && (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-red-600 text-white">
-                              <AlertTriangle className="h-3 w-3" />
-                              SEM ESTOQUE
-                            </span>
-                          )}
-                          {isLowStock && (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-yellow-600 text-white">
-                              <AlertTriangle className="h-3 w-3" />
-                              ESTOQUE BAIXO
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Quantidade em estoque: 
-                          <span 
-                            className={`font-semibold ml-1 ${
-                              isOutOfStock ? "text-red-700" : isLowStock ? "text-yellow-700" : ""
-                            }`}
-                          >
-                            {product.quantity}
-                          </span>
+                    {isEditing ? (
+                      // Formulário de edição inline
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Editar Produto</h3>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-name">Nome do Produto *</Label>
+                              <Input
+                                id="edit-name"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                placeholder="Ex: Produto A"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-price">Preço Unitário (R$) *</Label>
+                              <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  id="edit-price"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={formData.price}
+                                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                  placeholder="0,00"
+                                  className="pl-10"
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-quantity">Quantidade *</Label>
+                              <Input
+                                id="edit-quantity"
+                                type="number"
+                                min="0"
+                                value={formData.quantity}
+                                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-3">
+                            <Button type="submit" disabled={isSubmitting}>
+                              {isSubmitting ? "Salvando..." : "Salvar Alterações"}
+                            </Button>
+                            <Button type="button" variant="outline" onClick={handleCancel}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        </form>
+                      </div>
+                    ) : isAddingStock ? (
+                      // Formulário de adicionar estoque inline
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">Adicionar Estoque</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Produto: <strong>{product.name}</strong> | 
+                          Estoque atual: <strong>{product.quantity}</strong> | 
+                          Preço: <strong>{formatCurrency(product.price)}</strong>
                         </p>
+                        <form onSubmit={handleAddStockSubmit} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`addQuantity-${product.id}`}>Quantidade a Adicionar</Label>
+                            <Input
+                              id={`addQuantity-${product.id}`}
+                              type="number"
+                              min="1"
+                              value={addStockQuantity}
+                              onChange={(e) => setAddStockQuantity(e.target.value)}
+                              placeholder="Digite a quantidade"
+                              required
+                              autoFocus
+                            />
+                            {parseInt(addStockQuantity) > 0 && (
+                              <p className="text-sm text-green-700">
+                                Novo estoque será: <strong>{product.quantity + parseInt(addStockQuantity)}</strong>
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-3">
+                            <Button type="submit" disabled={isSubmitting}>
+                              {isSubmitting ? "Adicionando..." : "Confirmar Adição"}
+                            </Button>
+                            <Button type="button" variant="outline" onClick={handleCancelAddStock}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        </form>
                       </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleAddStock(product)}
-                          className="hover:bg-green-50 hover:text-green-600 hover:border-green-300"
-                          title="Adicionar estoque"
-                        >
-                          <PackagePlus className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleEdit(product)}
-                          title="Editar produto"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDelete(product)}
-                          className="hover:bg-red-50 hover:text-red-600"
-                          title="Excluir produto"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                    ) : (
+                      // Conteúdo normal do card
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="text-sm font-mono text-muted-foreground">#{product.code}</span>
+                            <h3 className="font-semibold text-lg">{product.name}</h3>
+                            {isOutOfStock && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-red-600 text-white">
+                                <AlertTriangle className="h-3 w-3" />
+                                SEM ESTOQUE
+                              </span>
+                            )}
+                            {isLowStock && (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-yellow-600 text-white">
+                                <AlertTriangle className="h-3 w-3" />
+                                ESTOQUE BAIXO
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <p className="text-sm text-muted-foreground">
+                              Quantidade em estoque: 
+                              <span 
+                                className={`font-semibold ml-1 ${
+                                  isOutOfStock ? "text-red-700" : isLowStock ? "text-yellow-700" : ""
+                                }`}
+                              >
+                                {product.quantity}
+                              </span>
+                            </p>
+                            <span className="text-muted-foreground">|</span>
+                            <p className="text-sm">
+                              Preço unitário: 
+                              <span className="font-semibold text-green-600 ml-1">
+                                {formatCurrency(product.price)}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleAddStock(product)}
+                            className="hover:bg-green-50 hover:text-green-600 hover:border-green-300"
+                            title="Adicionar estoque"
+                          >
+                            <PackagePlus className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => handleEdit(product)}
+                            title="Editar produto"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDelete(product)}
+                            className="hover:bg-red-50 hover:text-red-600"
+                            title="Excluir produto"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               )

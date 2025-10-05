@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     let baseQuery = `
       SELECT 
-        id, code, name, quantity,
+        id, code, name, price, quantity,
         company_id as "companyId",
         created_at as "createdAt",
         updated_at as "updatedAt"
@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
   try {
     console.log('=== POST /api/products ===')
     const user = await ApiAuthService.authenticateRequest(request)
-     console.log('User:', user?.name, 'Company:', user?.companyId)
+    console.log('User:', user?.name, 'Company:', user?.companyId)
+    
     if (!user) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
@@ -89,24 +90,31 @@ export async function POST(request: NextRequest) {
     if (product.quantity === undefined || product.quantity < 0) {
       return NextResponse.json({ error: "Quantidade inválida" }, { status: 400 })
     }
-console.log('Executando INSERT...')
+
+    // Validar preço
+    const price = product.price !== undefined ? parseFloat(product.price) : 0
+    if (price < 0) {
+      return NextResponse.json({ error: "Preço não pode ser negativo" }, { status: 400 })
+    }
+
+    console.log('Executando INSERT com price:', price)
     const result = await query(
       `INSERT INTO products 
-       (company_id, name, quantity) 
-       VALUES ($1, $2, $3) 
-       RETURNING id, code, name, quantity, company_id as "companyId", created_at as "createdAt", updated_at as "updatedAt"`,
+       (company_id, name, price, quantity) 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING id, code, name, price, quantity, company_id as "companyId", created_at as "createdAt", updated_at as "updatedAt"`,
       [
         user.companyId,
         product.name.trim(),
+        price,
         product.quantity,
-      ],
-      
+      ]
     )
     console.log('Produto criado:', result.rows[0])
 
     return NextResponse.json({ product: result.rows[0] }, { status: 201 })
   } catch (error) {
-     console.error('ERRO COMPLETO:', error)
+    console.error('ERRO COMPLETO:', error)
     console.error('Error creating product:', error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }

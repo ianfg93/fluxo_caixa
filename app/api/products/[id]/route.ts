@@ -23,6 +23,7 @@ export async function GET(
         id,
         code,
         name,
+        price,
         quantity,
         company_id as "companyId",
         created_at as "createdAt",
@@ -91,6 +92,14 @@ export async function PUT(
       return NextResponse.json({ error: "Quantidade não pode ser negativa" }, { status: 400 })
     }
 
+    if (updates.price !== undefined) {
+      const price = parseFloat(updates.price)
+      if (price < 0) {
+        return NextResponse.json({ error: "Preço não pode ser negativo" }, { status: 400 })
+      }
+      updates.price = price
+    }
+
     // Construir query de update dinamicamente
     const updateFields: string[] = []
     const updateValues: any[] = []
@@ -99,6 +108,12 @@ export async function PUT(
     if (updates.name !== undefined) {
       updateFields.push(`name = $${paramCount}`)
       updateValues.push(updates.name.trim())
+      paramCount++
+    }
+
+    if (updates.price !== undefined) {
+      updateFields.push(`price = $${paramCount}`)
+      updateValues.push(updates.price)
       paramCount++
     }
 
@@ -119,7 +134,7 @@ export async function PUT(
       `UPDATE products 
        SET ${updateFields.join(', ')}
        WHERE id = $${paramCount}
-       RETURNING id, code, name, quantity, company_id as "companyId", created_at as "createdAt", updated_at as "updatedAt"`,
+       RETURNING id, code, name, price, quantity, company_id as "companyId", created_at as "createdAt", updated_at as "updatedAt"`,
       updateValues
     )
 
