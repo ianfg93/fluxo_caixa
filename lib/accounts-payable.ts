@@ -30,6 +30,7 @@ export interface AccountPayable {
   invoiceNumber?: string
   notes?: string
   paidDate?: Date
+  paymentMethod?: string
   paidAmount?: number
   createdBy: string
   createdAt: Date

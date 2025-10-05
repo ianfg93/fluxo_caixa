@@ -158,6 +158,20 @@ export default function AccountsPayablePage() {
     return new Date(date).toLocaleDateString("pt-BR")
   }
 
+  const formatPaymentMethod = (method: string) => {
+    const methods: Record<string, string> = {
+      pix: "PIX",
+      ted: "TED/DOC",
+      boleto: "Boleto",
+      cartao_credito: "Cartão de Crédito",
+      cartao_debito: "Cartão de Débito",
+      dinheiro: "Dinheiro",
+      cheque: "Cheque",
+      outros: "Outros",
+    }
+    return methods[method] || method
+  }
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: "bg-yellow-100 text-yellow-800",
@@ -338,6 +352,12 @@ export default function AccountsPayablePage() {
                           <div className="flex items-center gap-2 text-sm text-green-600 font-medium mt-2">
                             <CheckCircle className="h-4 w-4" />
                             <span>Pago em: {formatDate(account.paidDate)}</span>
+                            {account.paymentMethod && (
+                              <>
+                                <span className="text-muted-foreground">•</span>
+                                <span>Método: {formatPaymentMethod(account.paymentMethod)}</span>
+                              </>
+                            )}
                           </div>
                         )}
                         {account.notes && <p className="text-sm text-muted-foreground mt-2">{account.notes}</p>}

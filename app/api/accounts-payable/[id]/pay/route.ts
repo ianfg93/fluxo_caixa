@@ -11,17 +11,21 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const canEditAll = ApiAuthService.hasPermission(user, 'edit_all')
     const canEditOwn = ApiAuthService.hasPermission(user, 'edit_own')
-    
+   
     if (!canEditAll && !canEditOwn) {
       return NextResponse.json({ error: "Sem permissão para marcar contas como pagas" }, { status: 403 })
     }
 
-    const { paidAmount, paidDate } = await request.json()
+    const { paidAmount, paidDate, paymentMethod, notes } = await request.json()
     const { id } = params
 
+    if (!paymentMethod) {
+      return NextResponse.json({ error: "Forma de pagamento é obrigatória" }, { status: 400 })
+    }
+
     let checkQuery = `
-      SELECT id, amount, status, company_id, created_by
-      FROM accounts_payable 
+      SELECT id, amount, status, company_id, created_by, notes
+      FROM accounts_payable
       WHERE id = $1
     `
     let checkParams = [id]
@@ -32,7 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const checkResult = await query(checkQuery, checkParams)
-    
+   
     if (checkResult.rows.length === 0) {
       return NextResponse.json({ error: "Conta não encontrada" }, { status: 404 })
     }
@@ -49,31 +53,53 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const originalAmount = Number.parseFloat(account.amount)
     const paidAmountNum = Number.parseFloat(paidAmount)
-    
+   
     let newStatus = 'paid'
     if (paidAmountNum < originalAmount) {
       newStatus = 'partially_paid'
     }
 
+    // Combinar observações existentes com observações do pagamento
+    let updatedNotes = account.notes || ''
+    if (notes) {
+      updatedNotes = updatedNotes 
+        ? `${updatedNotes}\n\n--- Pagamento ---\n${notes}`
+        : `--- Pagamento ---\n${notes}`
+    }
+
     const result = await query(
-      `UPDATE accounts_payable 
-       SET status = $1, 
-           payment_date = $2, 
+      `UPDATE accounts_payable
+       SET status = $1,
+           payment_date = $2,
            payment_amount = $3,
+           payment_method = $4,
+           notes = $5,
            updated_at = NOW()
-       WHERE id = $4 
+       WHERE id = $6
        RETURNING *`,
-      [newStatus, paidDate, paidAmount, id]
+      [newStatus, paidDate, paidAmount, paymentMethod, updatedNotes, id]
     )
 
     const row = result.rows[0]
+    let vendorData = null;
+    
+    if (row.vendor_id) {
+      const vendorResult = await query(
+        `SELECT name, cnpj, email, phone FROM vendors WHERE id = $1`,
+        [row.vendor_id]
+      );
+      if (vendorResult.rows.length > 0) {
+        vendorData = vendorResult.rows[0];
+      }
+    }
+
     const updatedAccount = {
       id: row.id,
-      supplierId: row.supplier_id || row.id,
-      supplierName: row.supplier_name,
-      supplierDocument: row.supplier_document,
-      supplierEmail: row.supplier_email,
-      supplierPhone: row.supplier_phone,
+      vendorId: row.vendor_id ?? null,
+      vendorName: vendorData?.name ?? null,
+      vendorDocument: vendorData?.cnpj ?? null,
+      vendorEmail: vendorData?.email ?? null,
+      vendorPhone: vendorData?.phone ?? null,
       description: row.description,
       amount: Number.parseFloat(row.amount),
       dueDate: row.due_date,
@@ -85,12 +111,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       notes: row.notes,
       paidDate: row.payment_date,
       paidAmount: row.payment_amount ? Number.parseFloat(row.payment_amount) : undefined,
+      paymentMethod: row.payment_method,
       createdBy: row.created_by,
       createdAt: row.created_at,
     }
 
     return NextResponse.json({ account: updatedAccount })
   } catch (error) {
+    console.error("Error marking account as paid:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

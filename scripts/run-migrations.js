@@ -31,7 +31,6 @@ async function runMigrations() {
     const client = new Client(getMigrationClientConfig());
 
   console.log("🚀 Iniciando processo de migração...")
-  console.log("⚠️  ATENÇÃO: Este processo irá APAGAR todos os dados existentes!")
   
   try {
     await client.connect()
@@ -53,7 +52,8 @@ async function runMigrations() {
       // "011_create_products_table.sql",
       // "012_create_vendors_table.sql",
       // "013_alter_accounts_payable.sql",
-      "014_add_price_to_products.sql",
+      // "014_add_price_to_products.sql",
+      "015_cleanup_accounts_payable.sql",
     ]
 
     let executedCount = 0
@@ -122,20 +122,6 @@ async function runMigrations() {
     tables.rows.forEach(table => {
       console.log(`  📋 ${table.table_name} (${table.column_count} colunas)`)
     })
-
-    // Mostrar dados iniciais criados
-    console.log("\n👥 Usuários criados:")
-    const users = await client.query(`
-      SELECT 
-        u.name,
-        u.email,
-        ut.name as user_type,
-        c.name as company
-      FROM users u
-      LEFT JOIN user_types ut ON u.user_type_id = ut.id
-      LEFT JOIN companies c ON u.company_id = c.id
-      ORDER BY ut.level, u.name
-    `)
     
     users.rows.forEach(user => {
       const company = user.company ? ` (${user.company})` : ' (Sistema)'
@@ -148,13 +134,6 @@ async function runMigrations() {
       const status = company.active ? '✅' : '❌'
       console.log(`  🏢 ${company.name} - ${company.cnpj} ${status}`)
     })
-
-    console.log("\n💡 Próximos passos:")
-    console.log("  1. Alterar senhas padrão dos usuários")
-    console.log("  2. Configurar dados da sua empresa")
-    console.log("  3. Criar usuários reais")
-    console.log("  4. Testar funcionalidades")
-    console.log("  5. Configurar backup automático")
 
   } catch (error) {
     console.error("💥 Erro crítico:", error.message)
