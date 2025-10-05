@@ -17,13 +17,14 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const companyFilter = searchParams.get("company")
 
-    const baseQuery = `
+    let baseQuery = `
       SELECT 
         ap.id,
-        ap.supplier_name,
-        ap.supplier_document,
-        ap.supplier_email,
-        ap.supplier_phone,
+        ap.vendor_id as "vendorId",
+        v.name as "vendorName",
+        v.cnpj as "vendorDocument",
+        v.email as "vendorEmail",
+        v.phone as "vendorPhone",
         ap.description,
         ap.amount,
         ap.due_date,
@@ -34,11 +35,10 @@ export async function GET(request: NextRequest) {
         ap.invoice_number,
         ap.notes,
         ap.payment_date,
-        ap.payment_amount,
-        ap.created_by,
         ap.created_at,
         u.name as created_by_name
       FROM accounts_payable ap
+      LEFT JOIN vendors v ON ap.vendor_id = v.id
       LEFT JOIN users u ON ap.created_by = u.id
     `
 
@@ -66,11 +66,11 @@ export async function GET(request: NextRequest) {
 
     const accounts = result.rows.map((row) => ({
       id: row.id,
-      supplierId: row.supplier_id || row.id,
-      supplierName: row.supplier_name,
-      supplierDocument: row.supplier_document,
-      supplierEmail: row.supplier_email,
-      supplierPhone: row.supplier_phone,
+      vendorId: row.vendorId,
+      vendorName: row.vendorName,
+      vendorDocument: row.vendorDocument,
+      vendorEmail: row.vendorEmail,
+      vendorPhone: row.vendorPhone,
       description: row.description,
       amount: Number.parseFloat(row.amount),
       dueDate: row.due_date,
@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ accounts })
   } catch (error) {
+    console.error("Error in GET /api/accounts-payable:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
@@ -104,38 +105,48 @@ export async function POST(request: NextRequest) {
     }
 
     const account = await request.json()
+    
+    // Validar se o fornecedor existe e pertence à empresa do usuário
+    const vendorCheck = await query(
+      "SELECT id, name, cnpj, email, phone FROM vendors WHERE id = $1 AND company_id = $2",
+      [account.vendorId, user.companyId]
+    )
+
+    if (vendorCheck.rows.length === 0) {
+      return NextResponse.json({ error: "Fornecedor não encontrado" }, { status: 404 })
+    }
+
+    const vendor = vendorCheck.rows[0]
 
     const result = await query(
-      `INSERT INTO accounts_payable
-       (company_id, supplier_name, supplier_document, supplier_email, supplier_phone, 
-        description, amount, issue_date, due_date, status, priority, category, 
-        invoice_number, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-       RETURNING *`,
+      `INSERT INTO accounts_payable 
+      (company_id, vendor_id, description, amount, due_date, issue_date, status, priority, category, invoice_number, notes, created_by) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+      RETURNING *`,
       [
         user.companyId,
-        account.supplierName,
-        account.supplierDocument,
-        account.supplierEmail,
-        account.supplierPhone,
+        account.vendorId,
         account.description,
         account.amount,
-        account.issueDate,
         account.dueDate,
-        account.status || 'pending',
-        account.priority || 'medium',
+        account.issueDate,
+        account.status,
+        account.priority,
         account.category,
-        account.invoiceNumber,
-        account.notes,
+        account.invoiceNumber || null,
+        account.notes || null,
         user.id,
-      ],
+      ]
     )
 
     const row = result.rows[0]
     const newAccount = {
       id: row.id,
-      supplierId: row.supplier_id || row.id,
-      supplierName: row.supplier_name,
+      vendorId: row.vendor_id,
+      vendorName: vendor.name,
+      vendorDocument: vendor.cnpj,
+      vendorEmail: vendor.email,
+      vendorPhone: vendor.phone,
       description: row.description,
       amount: Number.parseFloat(row.amount),
       dueDate: row.due_date,
@@ -153,6 +164,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ account: newAccount })
   } catch (error) {
+    console.error("Error in POST /api/accounts-payable:", error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }

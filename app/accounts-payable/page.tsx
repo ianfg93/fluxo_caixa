@@ -89,7 +89,7 @@ export default function AccountsPayablePage() {
     }
 
     const confirmMessage = `Tem certeza que deseja excluir esta conta?\n\n` +
-      `Fornecedor: ${account.supplierName}\n` +
+      `Fornecedor: ${account.vendorName}\n` +
       `Descrição: ${account.description}\n` +
       `Valor: R$ ${account.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
 
@@ -320,7 +320,7 @@ export default function AccountsPayablePage() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold">{account.supplierName}</h3>
+                          <h3 className="font-semibold">{account.vendorName}</h3>
                           <Badge className={getStatusColor(account.status)}>
                             {getStatusText(account.status)}
                           </Badge>

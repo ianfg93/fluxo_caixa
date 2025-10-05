@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,8 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AccountsPayableService, type PaymentPriority, type Supplier, type AccountPayable, type CreateAccountPayable, type UpdateAccountPayable } from "@/lib/accounts-payable"
-import { FileUploader } from "@/components/file-upload/file-uploader"
+import { AccountsPayableService, type PaymentPriority, type AccountPayable } from "@/lib/accounts-payable"
+import { VendorsService, type Vendor } from "@/lib/vendors"
 
 interface AccountFormProps {
   account?: AccountPayable
@@ -19,13 +18,12 @@ interface AccountFormProps {
 }
 
 export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [loadingSuppliers, setLoadingSuppliers] = useState(true)
+  const [vendors, setVendors] = useState<Vendor[]>([])
+  const [loadingVendors, setLoadingVendors] = useState(true)
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
+  
   const [formData, setFormData] = useState({
-    supplierName: account?.supplierName || "",
-    supplierDocument: account?.supplierDocument || "",
-    supplierEmail: account?.supplierEmail || "",
-    supplierPhone: account?.supplierPhone || "",
+    vendorId: account?.vendorId || "",  // ← CORRIGIDO: agora inicializa com vendorId do account
     description: account?.description || "",
     amount: account?.amount?.toString() || "",
     dueDate: account ? new Date(account.dueDate).toISOString().split("T")[0] : "",
@@ -36,24 +34,38 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
     notes: account?.notes || "",
   })
   const [isLoading, setIsLoading] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const loadSuppliers = async () => {
+    const loadVendors = async () => {
       try {
-        setLoadingSuppliers(true)
-        const suppliersData = await AccountsPayableService.getSuppliers()
-        setSuppliers(suppliersData)
+        setLoadingVendors(true)
+        const vendorsData = await VendorsService.getVendors()
+        setVendors(vendorsData)
+        
+        // Se está editando e tem vendorId, selecionar o vendor correspondente
+        if (account?.vendorId) {
+          const vendor = vendorsData.find(v => v.id === account.vendorId)
+          if (vendor) {
+            setSelectedVendor(vendor)
+          }
+        }
       } catch (error) {
-        setSuppliers([])
+        console.error("Error loading vendors:", error)
+        setVendors([])
       } finally {
-        setLoadingSuppliers(false)
+        setLoadingVendors(false)
       }
     }
 
-    loadSuppliers()
-  }, [])
+    loadVendors()
+  }, [account])
+
+  const handleVendorChange = (vendorId: string) => {
+    const vendor = vendors.find(v => v.id === vendorId)
+    setSelectedVendor(vendor || null)
+    setFormData(prev => ({ ...prev, vendorId }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,11 +73,14 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
     setError(null)
 
     try {
-      const accountData: CreateAccountPayable = {
-        supplierName: formData.supplierName,
-        supplierDocument: formData.supplierDocument,
-        supplierEmail: formData.supplierEmail,
-        supplierPhone: formData.supplierPhone,
+      if (!formData.vendorId) {
+        setError("Selecione um fornecedor")
+        setIsLoading(false)
+        return
+      }
+
+      const accountData = {
+        vendorId: formData.vendorId,
         description: formData.description,
         amount: Number.parseFloat(formData.amount),
         dueDate: new Date(formData.dueDate),
@@ -79,8 +94,7 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
 
       let result
       if (account) {
-        const updateData: UpdateAccountPayable = accountData
-        result = await AccountsPayableService.updateAccountPayable(account.id, updateData)
+        result = await AccountsPayableService.updateAccountPayable(account.id, accountData)
       } else {
         result = await AccountsPayableService.addAccountPayable(accountData)
       }
@@ -91,6 +105,7 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
         setError("Erro ao salvar conta. Tente novamente.")
       }
     } catch (error) {
+      console.error("Error saving account:", error)
       setError("Erro ao salvar conta. Verifique os dados e tente novamente.")
     } finally {
       setIsLoading(false)
@@ -113,39 +128,56 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="supplier">Fornecedor</Label>
-              {loadingSuppliers ? (
-                <Input value="Carregando fornecedores..." disabled />
-              ) : suppliers.length > 0 ? (
+          {/* Seleção de Fornecedor */}
+          <div className="space-y-2 p-4 border rounded-lg bg-slate-50">
+            <Label htmlFor="vendor">Fornecedor *</Label>
+            {loadingVendors ? (
+              <Input value="Carregando fornecedores..." disabled />
+            ) : vendors.length > 0 ? (
+              <>
                 <Select
-                  value={formData.supplierName}
-                  onValueChange={(value) => setFormData({ ...formData, supplierName: value })}
+                  value={formData.vendorId}
+                  onValueChange={handleVendorChange}
                   required
+                  disabled={!!account}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um fornecedor" />
                   </SelectTrigger>
                   <SelectContent>
-                    {suppliers.map((supplier) => (
-                      <SelectItem key={supplier.id} value={supplier.name}>
-                        {supplier.name}
+                    {vendors.map((vendor) => (
+                      <SelectItem key={vendor.id} value={vendor.id}>
+                        {vendor.name} - {VendorsService.formatCNPJ(vendor.cnpj)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : (
-                <Input
-                  value={formData.supplierName}
-                  onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
-                  placeholder="Digite o nome do fornecedor"
-                  required
-                />
-              )}
-            </div>
+                {account && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ⚠️ O fornecedor não pode ser alterado após a criação da conta
+                  </p>
+                )}
+
+                {selectedVendor && (
+                  <div className="mt-3 p-3 bg-white border rounded text-sm space-y-1">
+                    <p><strong>CNPJ:</strong> {VendorsService.formatCNPJ(selectedVendor.cnpj)}</p>
+                    {selectedVendor.email && <p><strong>Email:</strong> {selectedVendor.email}</p>}
+                    {selectedVendor.phone && <p><strong>Telefone:</strong> {selectedVendor.phone}</p>}
+                    {selectedVendor.address && <p><strong>Endereço:</strong> {selectedVendor.address}</p>}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                <p>Nenhum fornecedor cadastrado.</p>
+                <p className="mt-2">Cadastre fornecedores em <strong>Fornecedores</strong> no menu lateral.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Valor (R$)</Label>
+              <Label htmlFor="amount">Valor (R$) *</Label>
               <Input
                 id="amount"
                 value={formData.amount}
@@ -157,32 +189,20 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
                 min="0"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="supplierDocument">CNPJ/CPF do Fornecedor</Label>
+              <Label htmlFor="category">Categoria *</Label>
               <Input
-                id="supplierDocument"
-                value={formData.supplierDocument}
-                onChange={(e) => setFormData({ ...formData, supplierDocument: e.target.value })}
-                placeholder="00.000.000/0000-00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="supplierEmail">Email do Fornecedor</Label>
-              <Input
-                id="supplierEmail"
-                type="email"
-                value={formData.supplierEmail}
-                onChange={(e) => setFormData({ ...formData, supplierEmail: e.target.value })}
-                placeholder="fornecedor@empresa.com"
+                id="category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                placeholder="Ex: Material de Escritório"
+                required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
+            <Label htmlFor="description">Descrição *</Label>
             <Input
               id="description"
               value={formData.description}
@@ -194,7 +214,7 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="issueDate">Data de Emissão</Label>
+              <Label htmlFor="issueDate">Data de Emissão *</Label>
               <Input
                 id="issueDate"
                 type="date"
@@ -204,7 +224,7 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dueDate">Data de Vencimento</Label>
+              <Label htmlFor="dueDate">Data de Vencimento *</Label>
               <Input
                 id="dueDate"
                 type="date"
@@ -214,7 +234,7 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="priority">Prioridade</Label>
+              <Label htmlFor="priority">Prioridade *</Label>
               <Select
                 value={formData.priority}
                 onValueChange={(value) => setFormData({ ...formData, priority: value as PaymentPriority })}
@@ -232,26 +252,14 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="category">Categoria</Label>
-              <Input
-                id="category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                placeholder="Ex: Material de Escritório"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="invoiceNumber">Número da Nota Fiscal</Label>
-              <Input
-                id="invoiceNumber"
-                value={formData.invoiceNumber}
-                onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
-                placeholder="Ex: NF-001234"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="invoiceNumber">Número da Nota Fiscal</Label>
+            <Input
+              id="invoiceNumber"
+              value={formData.invoiceNumber}
+              onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
+              placeholder="Ex: NF-001234"
+            />
           </div>
 
           <div className="space-y-2">
@@ -266,7 +274,7 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button type="submit" disabled={isLoading || loadingSuppliers} className="flex-1">
+            <Button type="submit" disabled={isLoading || loadingVendors || vendors.length === 0} className="flex-1">
               {isLoading ? "Salvando..." : `${account ? "Salvar Alterações" : "Salvar Conta"}`}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>

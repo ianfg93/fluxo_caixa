@@ -15,11 +15,11 @@ export interface Supplier {
 
 export interface AccountPayable {
   id: string
-  supplierId: string
-  supplierName: string
-  supplierDocument?: string
-  supplierEmail?: string
-  supplierPhone?: string
+  vendorId: string  // ← Mudado de supplierId para vendorId
+  vendorName: string  // ← Mudado de supplierName
+  vendorDocument?: string  // ← Mudado de supplierDocument
+  vendorEmail?: string  // ← Mudado de supplierEmail
+  vendorPhone?: string  // ← Mudado de supplierPhone
   description: string
   amount: number
   dueDate: Date
@@ -36,26 +36,20 @@ export interface AccountPayable {
 }
 
 export interface CreateAccountPayable {
-  supplierName: string
-  supplierDocument?: string
-  supplierEmail?: string
-  supplierPhone?: string
+  vendorId: string
   description: string
   amount: number
   dueDate: Date
   issueDate: Date
-  status?: PaymentStatus
-  priority: PaymentPriority
+  status: string
+  priority: string
   category: string
   invoiceNumber?: string
   notes?: string
 }
 
 export interface UpdateAccountPayable {
-  supplierName?: string
-  supplierDocument?: string
-  supplierEmail?: string
-  supplierPhone?: string
+  vendorId?: string  // ← Opcional agora
   description?: string
   amount?: number
   dueDate?: Date
@@ -202,7 +196,7 @@ export class AccountsPayableService {
     } catch (error) {
       return null
     }
-}
+  }
 
   static async getOverdueAccounts(): Promise<AccountPayable[]> {
     try {

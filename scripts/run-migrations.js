@@ -51,7 +51,8 @@ async function runMigrations() {
       // "009_seed_initial_data.sql",
       // "010_create_migrations_control.sql",
       // "011_create_products_table.sql",
-      "012_create_vendors_table.sql",
+      // "012_create_vendors_table.sql",
+      "013_alter_accounts_payable.sql",
     ]
 
     let executedCount = 0
