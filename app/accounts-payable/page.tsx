@@ -334,6 +334,12 @@ export default function AccountsPayablePage() {
                           <span>Categoria: {account.category}</span>
                           {account.invoiceNumber && <span>NF: {account.invoiceNumber}</span>}
                         </div>
+                        {account.paidDate && (
+                          <div className="flex items-center gap-2 text-sm text-green-600 font-medium mt-2">
+                            <CheckCircle className="h-4 w-4" />
+                            <span>Pago em: {formatDate(account.paidDate)}</span>
+                          </div>
+                        )}
                         {account.notes && <p className="text-sm text-muted-foreground mt-2">{account.notes}</p>}
                       </div>
                       <div className="flex items-center gap-3">
