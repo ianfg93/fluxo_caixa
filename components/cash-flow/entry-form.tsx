@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,14 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
 import { ProductService, type Product } from "@/lib/products"
 import { Textarea } from "../ui/textarea"
-import { Plus, X, Package, Calculator } from "lucide-react"
+import { Plus, X, Package, Calculator, Search } from "lucide-react"
 
 interface SelectedProduct {
   productId: string
   productName: string
-  price: number  // ← NOVO: Preço unitário
+  price: number
   quantity: number
-  subtotal: number  // ← NOVO: Preço × Quantidade
+  subtotal: number
   availableStock: number
 }
 
@@ -36,9 +36,10 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
   
   const [products, setProducts] = useState<Product[]>([])
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
-  const [currentProduct, setCurrentProduct] = useState<string>("")
+  const [productSearchTerm, setProductSearchTerm] = useState<string>("")
+  const [selectedProductId, setSelectedProductId] = useState<string>("")
   const [currentQuantity, setCurrentQuantity] = useState<string>("1")
-  const [extraAmount, setExtraAmount] = useState<string>("0")  // ← NOVO: Valor extra
+  const [extraAmount, setExtraAmount] = useState<string>("0")
   
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
@@ -46,7 +47,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
 
   const paymentMethods = CashFlowService.getPaymentMethodOptions()
 
-  // Carregar produtos disponíveis
   useEffect(() => {
     loadProducts()
   }, [])
@@ -57,6 +57,22 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     setProducts(data)
     setIsLoadingProducts(false)
   }
+
+  // Filtrar produtos disponíveis com base na busca
+  const filteredAvailableProducts = useMemo(() => {
+    const searchLower = productSearchTerm.toLowerCase().trim()
+    
+    return products
+      .filter((p) => p.quantity > 0)
+      .filter((p) => {
+        if (!searchLower) return true
+        
+        const matchesName = p.name.toLowerCase().includes(searchLower)
+        const matchesCode = p.code.toString().includes(searchLower)
+        
+        return matchesName || matchesCode
+      })
+  }, [products, productSearchTerm])
 
   // Atualizar observações quando produtos selecionados mudam
   useEffect(() => {
@@ -70,12 +86,10 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     }
   }, [selectedProducts])
 
-  // ← NOVO: Calcular subtotal dos produtos
   const getProductsSubtotal = (): number => {
     return selectedProducts.reduce((sum, p) => sum + p.subtotal, 0)
   }
 
-  // ← NOVO: Calcular total final (produtos + extra)
   const getTotalAmount = (): number => {
     const productsTotal = getProductsSubtotal()
     const extra = Number.parseFloat(extraAmount) || 0
@@ -89,8 +103,14 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     })
   }
 
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProductId(productId)
+    setCurrentQuantity("1")
+    setError(null)
+  }
+
   const handleAddProduct = () => {
-    if (!currentProduct || !currentQuantity) {
+    if (!selectedProductId || !currentQuantity) {
       setError("Selecione um produto e informe a quantidade")
       return
     }
@@ -101,34 +121,24 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
       return
     }
 
-    // Verificar se produto já foi adicionado
-    if (selectedProducts.some((p) => p.productId === currentProduct)) {
+    if (selectedProducts.some((p) => p.productId === selectedProductId)) {
       setError("Este produto já foi adicionado")
       return
     }
 
-    const product = products.find((p) => p.id === currentProduct)
+    const product = products.find((p) => p.id === selectedProductId)
     if (!product) {
       setError("Produto não encontrado")
       return
     }
 
-    // Verificar estoque disponível
-    const stockAlreadyUsed = selectedProducts
-      .filter((p) => p.productId === currentProduct)
-      .reduce((sum, p) => sum + p.quantity, 0)
-    
-    const availableStock = product.quantity - stockAlreadyUsed
-
-    if (quantity > availableStock) {
-      setError(`Estoque insuficiente. Disponível: ${availableStock}`)
+    if (quantity > product.quantity) {
+      setError(`Estoque insuficiente. Disponível: ${product.quantity}`)
       return
     }
 
-    // ← NOVO: Calcular subtotal (preço × quantidade)
     const subtotal = product.price * quantity
 
-    // Adicionar produto
     setSelectedProducts([
       ...selectedProducts,
       {
@@ -141,9 +151,9 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
       },
     ])
 
-    // Limpar seleção
-    setCurrentProduct("")
+    setSelectedProductId("")
     setCurrentQuantity("1")
+    setProductSearchTerm("")
     setError(null)
   }
 
@@ -165,7 +175,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
         return
       }
 
-      // Preparar dados da transação
       const transactionData: any = {
         type: "entry",
         description: "Venda",
@@ -176,7 +185,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
         notes: formData.notes || undefined,
       }
 
-      // Adicionar observações adicionais ao final das observações de produtos
       if (formData.additionalNotes) {
         if (transactionData.notes) {
           transactionData.notes += `\n\nObservações: ${formData.additionalNotes}`
@@ -185,7 +193,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
         }
       }
 
-      // Adicionar informação sobre valor extra se houver
       const extra = Number.parseFloat(extraAmount) || 0
       if (extra > 0) {
         transactionData.notes = transactionData.notes 
@@ -193,7 +200,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
           : `Valor Extra: ${formatCurrency(extra)}`
       }
 
-      // Se houver produtos selecionados, adicionar ao payload
       if (selectedProducts.length > 0) {
         transactionData.products = selectedProducts.map((p) => ({
           productId: p.productId,
@@ -217,6 +223,8 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     }
   }
 
+  const selectedProduct = products.find(p => p.id === selectedProductId)
+
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
@@ -238,56 +246,119 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
               <h3 className="font-semibold">Produtos da Venda</h3>
             </div>
 
-            {/* Adicionar Produto */}
-            <div className="grid grid-cols-12 gap-3">
-              <div className="col-span-6 space-y-2">
-                <Label htmlFor="product">Produto</Label>
-                <Select
-                  value={currentProduct}
-                  onValueChange={setCurrentProduct}
-                  disabled={isLoadingProducts}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={isLoadingProducts ? "Carregando..." : "Selecione um produto"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products
-                      .filter((p) => p.quantity > 0)
-                      .map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - {formatCurrency(product.price)} (Est: {product.quantity})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="col-span-3 space-y-2">
-                <Label htmlFor="quantity">Quantidade</Label>
+            {/* Campo de Busca */}
+            <div className="space-y-2">
+              <Label htmlFor="productSearch">Buscar Produto</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  value={currentQuantity}
-                  onChange={(e) => setCurrentQuantity(e.target.value)}
+                  id="productSearch"
+                  type="text"
+                  placeholder="Digite o nome ou código do produto..."
+                  value={productSearchTerm}
+                  onChange={(e) => setProductSearchTerm(e.target.value)}
+                  className="pl-10"
+                  disabled={isLoadingProducts}
                 />
-              </div>
-
-              <div className="col-span-3 flex items-end">
-                <Button
-                  type="button"
-                  onClick={handleAddProduct}
-                  disabled={!currentProduct || isLoadingProducts}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Adicionar
-                </Button>
+                {productSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setProductSearchTerm("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Lista de Produtos Selecionados */}
+            {/* Lista de Produtos Disponíveis */}
+            {productSearchTerm && (
+              <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md bg-white p-2">
+                {isLoadingProducts ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+                ) : filteredAvailableProducts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhum produto encontrado
+                  </p>
+                ) : (
+                  filteredAvailableProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      onClick={() => handleSelectProduct(product.id)}
+                      className={`p-3 rounded-md cursor-pointer transition-colors ${
+                        selectedProductId === product.id
+                          ? "bg-blue-100 border-2 border-blue-500"
+                          : "bg-slate-50 hover:bg-slate-100 border border-slate-200"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono text-muted-foreground">#{product.code}</span>
+                            <p className="font-medium">{product.name}</p>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                            <span>Preço: <strong className="text-green-600">{formatCurrency(product.price)}</strong></span>
+                            <span>•</span>
+                            <span>Estoque: <strong>{product.quantity}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Produto Selecionado e Quantidade */}
+            {selectedProduct && (
+              <div className="space-y-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-blue-900">Produto Selecionado:</p>
+                    <p className="text-sm">#{selectedProduct.code} - {selectedProduct.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatCurrency(selectedProduct.price)} • Estoque: {selectedProduct.quantity}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setSelectedProductId("")}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <Label htmlFor="quantity">Quantidade</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      max={selectedProduct.quantity}
+                      value={currentQuantity}
+                      onChange={(e) => setCurrentQuantity(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      onClick={handleAddProduct}
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Lista de Produtos Adicionados */}
             {selectedProducts.length > 0 && (
               <div className="space-y-2 mt-4">
                 <Label>Produtos Adicionados:</Label>
@@ -301,9 +372,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
                         <p className="font-medium">{product.productName}</p>
                         <p className="text-sm text-muted-foreground">
                           {product.quantity} × {formatCurrency(product.price)} = <span className="font-semibold text-green-600">{formatCurrency(product.subtotal)}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Estoque disponível: {product.availableStock}
                         </p>
                       </div>
                       <Button
@@ -329,7 +397,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
               <h3 className="font-semibold">Resumo de Valores</h3>
             </div>
 
-            {/* Subtotal dos produtos */}
             {selectedProducts.length > 0 && (
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Subtotal dos Produtos:</span>
@@ -337,9 +404,8 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
               </div>
             )}
 
-            {/* Valor Extra */}
             <div className="space-y-2">
-              <Label htmlFor="extraAmount">Valor Extra (Taxa, Frete, etc.)</Label>
+              <Label htmlFor="extraAmount">Valor Adicional</Label>
               <Input
                 id="extraAmount"
                 value={extraAmount}
@@ -349,12 +415,8 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
                 step="0.01"
                 min="0"
               />
-              <p className="text-xs text-muted-foreground">
-                Adicione valores extras como taxa de entrega, embalagem, etc.
-              </p>
             </div>
 
-            {/* Total Final */}
             <div className="flex justify-between items-center pt-3 border-t-2 border-blue-200">
               <span className="font-bold text-lg">Total Final:</span>
               <span className="font-bold text-2xl text-green-600">
@@ -397,9 +459,8 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
             </div>
           </div>
 
-          {/* Observações divididas em duas partes */}
+          {/* Observações */}
           <div className="space-y-4">
-            {/* Parte 1: Lista de produtos (readonly) */}
             {selectedProducts.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="productsNotes">Produtos da Venda</Label>
@@ -410,27 +471,18 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
                   className="bg-slate-100 cursor-not-allowed whitespace-pre-wrap text-xs"
                   rows={3}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Lista automática dos produtos selecionados
-                </p>
               </div>
             )}
 
-            {/* Parte 2: Observações livres (editável) */}
             <div className="space-y-2">
-              <Label htmlFor="additionalNotes">
-                Observações Adicionais {!selectedProducts.length && "(opcional)"}
-              </Label>
+              <Label htmlFor="additionalNotes">Observações Adicionais</Label>
               <Textarea
                 id="additionalNotes"
                 value={formData.additionalNotes}
                 onChange={(e) => setFormData({ ...formData, additionalNotes: e.target.value })}
-                placeholder="Adicione informações extras: nome do cliente, forma de entrega, etc."
+                placeholder="Adicione informações extras quando necessário."
                 rows={3}
               />
-              <p className="text-xs text-muted-foreground">
-                Campo livre para você adicionar qualquer informação adicional
-              </p>
             </div>
           </div>
 
