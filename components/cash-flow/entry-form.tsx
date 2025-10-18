@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
 import { ProductService, type Product } from "@/lib/products"
+import { OpenOrderService, type OpenOrder } from "@/lib/open-orders"
 import { Textarea } from "../ui/textarea"
-import { Plus, X, Package, Calculator, Search } from "lucide-react"
+import { Plus, X, Package, Calculator, Search, Save, DollarSign, Receipt, ArrowLeft } from "lucide-react"
 
 interface SelectedProduct {
   productId: string
@@ -24,9 +26,11 @@ interface SelectedProduct {
 interface EntryFormProps {
   onSuccess: () => void
   onCancel: () => void
+  selectedOrder?: OpenOrder | null
+  onBackToOrders?: () => void
 }
 
-export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
+export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }: EntryFormProps) {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     paymentMethod: "" as PaymentMethod | "",
@@ -43,6 +47,7 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
   
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
+  const [isSavingOrder, setIsSavingOrder] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const paymentMethods = CashFlowService.getPaymentMethodOptions()
@@ -51,6 +56,27 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     loadProducts()
   }, [])
 
+  // Carregar dados da comanda selecionada
+  useEffect(() => {
+    if (selectedOrder) {
+      setSelectedProducts(
+        (selectedOrder.items || []).map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          price: item.productPrice,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+          availableStock: 0, // Será atualizado ao carregar produtos
+        }))
+      )
+      setExtraAmount(selectedOrder.extraAmount.toString())
+      setFormData((prev) => ({
+        ...prev,
+        additionalNotes: selectedOrder.notes || "",
+      }))
+    }
+  }, [selectedOrder])
+
   const loadProducts = async () => {
     setIsLoadingProducts(true)
     const data = await ProductService.getProducts()
@@ -58,7 +84,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     setIsLoadingProducts(false)
   }
 
-  // Filtrar produtos disponíveis com base na busca
   const filteredAvailableProducts = useMemo(() => {
     const searchLower = productSearchTerm.toLowerCase().trim()
     
@@ -74,7 +99,6 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
       })
   }, [products, productSearchTerm])
 
-  // Atualizar observações quando produtos selecionados mudam
   useEffect(() => {
     if (selectedProducts.length > 0) {
       const productList = selectedProducts
@@ -109,7 +133,7 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     setError(null)
   }
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!selectedProductId || !currentQuantity) {
       setError("Selecione um produto e informe a quantidade")
       return
@@ -139,6 +163,22 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
 
     const subtotal = product.price * quantity
 
+    // Se estiver editando uma comanda, adiciona o item direto no banco
+    if (selectedOrder) {
+      const success = await OpenOrderService.addItemToOrder({
+        orderId: selectedOrder.id,
+        productId: product.id,
+        productName: product.name,
+        productPrice: product.price,
+        quantity,
+      })
+
+      if (!success) {
+        setError("Erro ao adicionar produto à comanda")
+        return
+      }
+    }
+
     setSelectedProducts([
       ...selectedProducts,
       {
@@ -157,8 +197,47 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
     setError(null)
   }
 
-  const handleRemoveProduct = (productId: string) => {
+  const handleRemoveProduct = async (productId: string) => {
+    // Se estiver editando uma comanda, remove do banco
+    if (selectedOrder) {
+      const item = selectedProducts.find((p) => p.productId === productId)
+      if (item) {
+        const orderItem = selectedOrder.items?.find((i) => i.productId === productId)
+        if (orderItem) {
+          const success = await OpenOrderService.removeItemFromOrder(orderItem.id, selectedOrder.id)
+          if (!success) {
+            setError("Erro ao remover produto da comanda")
+            return
+          }
+        }
+      }
+    }
+
     setSelectedProducts(selectedProducts.filter((p) => p.productId !== productId))
+  }
+
+  // Salvar comanda sem finalizar
+  const handleSaveOrder = async () => {
+    if (!selectedOrder) return
+
+    setIsSavingOrder(true)
+    setError(null)
+
+    try {
+      const extra = Number.parseFloat(extraAmount) || 0
+      
+      await OpenOrderService.updateOrderExtraAmount(selectedOrder.id, extra)
+      await OpenOrderService.updateOrderNotes(selectedOrder.id, formData.additionalNotes)
+
+      if (onBackToOrders) {
+        onBackToOrders()
+      }
+    } catch (error) {
+      console.error("Erro ao salvar comanda:", error)
+      setError("Erro ao salvar comanda. Tente novamente.")
+    } finally {
+      setIsSavingOrder(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,7 +256,7 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
 
       const transactionData: any = {
         type: "entry",
-        description: "Venda",
+        description: selectedOrder ? `Venda - ${selectedOrder.orderNumber}` : "Venda",
         amount: totalAmount,
         category: "vendas",
         date: new Date(formData.date),
@@ -214,6 +293,11 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
         return
       }
 
+      // Se era uma comanda, fecha ela
+      if (selectedOrder) {
+        await OpenOrderService.closeOrder(selectedOrder.id)
+      }
+
       onSuccess()
     } catch (error) {
       console.error("Error adding entry:", error)
@@ -228,8 +312,30 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Nova Entrada (Venda)</CardTitle>
-        <CardDescription>Registre uma nova venda ou entrada de dinheiro</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              {selectedOrder && (
+                <Badge variant="outline" className="text-orange-600 border-orange-600">
+                  <Receipt className="h-3 w-3 mr-1" />
+                  {selectedOrder.orderNumber}
+                </Badge>
+              )}
+              {selectedOrder ? "Editar Comanda" : "Nova Entrada (Venda)"}
+            </CardTitle>
+            <CardDescription>
+              {selectedOrder 
+                ? "Adicione produtos e finalize a venda quando estiver pronto"
+                : "Registre uma nova venda ou entrada de dinheiro"}
+            </CardDescription>
+          </div>
+          {selectedOrder && onBackToOrders && (
+            <Button variant="outline" size="sm" onClick={onBackToOrders}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Voltar
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -487,12 +593,33 @@ export function EntryForm({ onSuccess, onCancel }: EntryFormProps) {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button type="submit" disabled={isLoading || getTotalAmount() <= 0} className="flex-1">
-              {isLoading ? "Salvando..." : "Registrar Venda"}
-            </Button>
-            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-              Cancelar
-            </Button>
+            {selectedOrder ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSaveOrder}
+                  disabled={isSavingOrder}
+                  className="flex-1"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {isSavingOrder ? "Salvando..." : "Salvar Comanda"}
+                </Button>
+                <Button type="submit" disabled={isLoading || getTotalAmount() <= 0} className="flex-1">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  {isLoading ? "Finalizando..." : "Finalizar Venda"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="submit" disabled={isLoading || getTotalAmount() <= 0} className="flex-1">
+                  {isLoading ? "Salvando..." : "Registrar Venda"}
+                </Button>
+                <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+                  Cancelar
+                </Button>
+              </>
+            )}
           </div>
         </form>
       </CardContent>

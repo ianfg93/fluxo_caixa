@@ -10,7 +10,9 @@ import { TransactionForm } from "./transaction-form"
 import { EntryForm } from "./entry-form"
 import { EditTransactionForm } from "./edit-transaction-form"
 import { DateFilter, type DateFilter as DateFilterType } from "./date-filter"
+import { OpenOrder } from "@/lib/open-orders"
 import { useAuth } from "@/hooks/use-auth"
+import { OpenOrdersManager } from "./open-orders-manager"
 
 interface TransactionListProps {
   type: TransactionType
@@ -21,6 +23,7 @@ export function TransactionList({ type }: TransactionListProps) {
   const [filteredTransactions, setFilteredTransactions] = useState<CashFlowTransaction[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<CashFlowTransaction | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<OpenOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "all" })
   const { authState } = useAuth()
@@ -54,7 +57,6 @@ export function TransactionList({ type }: TransactionListProps) {
       })
     }
 
-    // Filtrar por método de pagamento
     if (dateFilter.paymentMethod) {
       filtered = filtered.filter(transaction => 
         transaction.paymentMethod === dateFilter.paymentMethod
@@ -72,6 +74,17 @@ export function TransactionList({ type }: TransactionListProps) {
     loadTransactions()
     setShowForm(false)
     setEditingTransaction(null)
+    setSelectedOrder(null)
+  }
+
+  const handleSelectOrder = (order: OpenOrder) => {
+    setSelectedOrder(order)
+    setShowForm(true)
+  }
+
+  const handleBackToOrders = () => {
+    setSelectedOrder(null)
+    setShowForm(false)
   }
 
   const canEdit = () => {
@@ -178,7 +191,17 @@ export function TransactionList({ type }: TransactionListProps) {
 
   if (showForm) {
     if (type === "entry") {
-      return <EntryForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
+      return (
+        <EntryForm 
+          onSuccess={handleSuccess} 
+          onCancel={() => {
+            setShowForm(false)
+            setSelectedOrder(null)
+          }}
+          selectedOrder={selectedOrder}
+          onBackToOrders={handleBackToOrders}
+        />
+      )
     } else {
       return <TransactionForm type={type} onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
     }
@@ -205,6 +228,11 @@ export function TransactionList({ type }: TransactionListProps) {
           Nova {type === "entry" ? "Venda" : "Saída"}
         </Button>
       </div>
+
+      {/* Sistema de Comandas - Apenas para Entradas */}
+      {type === "entry" && (
+        <OpenOrdersManager onSelectOrder={handleSelectOrder} />
+      )}
 
       <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
         <div className="flex-1 lg:flex-[2]">
@@ -269,7 +297,6 @@ export function TransactionList({ type }: TransactionListProps) {
                         <Badge className={getCategoryColor(transaction.category)}>
                           {transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)}
                         </Badge>
-                        {/* ✅ NOVO: Badge de forma de pagamento */}
                         {transaction.paymentMethod && (
                           <Badge variant="outline" className="flex items-center gap-1">
                             <CreditCard className="h-3 w-3" />
