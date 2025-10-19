@@ -54,7 +54,8 @@ async function runMigrations() {
       // "013_alter_accounts_payable.sql",
       // "014_add_price_to_products.sql",
       // "015_cleanup_accounts_payable.sql",
-      "016_add_open_order_service.sql",
+      // "016_add_open_order_service.sql",
+      "017_create_customers_table.sql",
     ]
 
     let executedCount = 0

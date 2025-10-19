@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package } from "lucide-react"
+import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useAuth } from "@/hooks/use-auth"
@@ -17,6 +17,7 @@ const navigation = [
   { name: "Entradas", href: "/cash-flow/entries", icon: TrendingUp, roles: ["administrator", "operational"] },
   { name: "Saídas", href: "/cash-flow/exits", icon: TrendingDown, roles: ["administrator", "operational"] },
   { name: "Contas a Pagar", href: "/accounts-payable", icon: CreditCard, roles: ["administrator"] },
+  { name: "Contas a Receber", href: "/accounts-receivable", icon: Clock, roles: ["master", "administrator"] }, // ✅ NOVO
   { name: "Usuários", href: "/users", icon: Users, roles: ["master", "administrator"] },
   { name: "Fornecedores", href: "/vendors", icon: Truck, roles: ["master", "administrator"] },
   { name: "Configurações", href: "/settings", icon: Settings, roles: ["master", "administrator", "operational"] },

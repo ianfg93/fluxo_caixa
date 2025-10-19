@@ -74,8 +74,8 @@ export async function PUT(
     const updates = await request.json()
     const { id } = params
 
-    // Validar payment_method se fornecido
-    if (updates.paymentMethod && !['credito', 'debito', 'pix', 'dinheiro'].includes(updates.paymentMethod)) {
+    // ✅ MODIFICADO: Incluir 'a_prazo' na validação
+    if (updates.paymentMethod && !['credito', 'debito', 'pix', 'dinheiro', 'a_prazo'].includes(updates.paymentMethod)) {
       return NextResponse.json({ error: "Forma de pagamento inválida" }, { status: 400 })
     }
 
@@ -128,10 +128,9 @@ export async function PUT(
           if (currentProduct) {
             const oldQuantity = currentProduct.quantity
             const newQuantity = updatedProduct.quantity
-            const difference = oldQuantity - newQuantity // Se positivo, devolver ao estoque
+            const difference = oldQuantity - newQuantity
 
             if (difference !== 0) {
-              // Verificar estoque disponível se estiver aumentando a venda
               if (difference < 0) {
                 const productCheck = await query(
                   "SELECT name, quantity FROM products WHERE id = $1",
@@ -151,19 +150,16 @@ export async function PUT(
                 }
               }
 
-              // Ajustar estoque (se difference > 0, soma ao estoque; se < 0, subtrai)
               await query(
                 "UPDATE products SET quantity = quantity + $1 WHERE id = $2",
                 [difference, updatedProduct.productId]
               )
 
-              // Atualizar a movimentação existente
               await query(
                 "UPDATE stock_movements SET quantity = $1 WHERE id = $2",
                 [-newQuantity, currentProduct.movement_id]
               )
 
-              // Registrar movimentação de ajuste
               await query(
                 `INSERT INTO stock_movements 
                  (product_id, transaction_id, quantity, type, notes, created_by)
@@ -181,11 +177,19 @@ export async function PUT(
         }
       }
 
-      // Atualizar a transação principal
+      // ✅ MODIFICADO: Atualizar a transação incluindo customer_id e amount_received
       const result = await query(
         `UPDATE cash_flow_transactions 
-         SET description = $1, amount = $2, category = $3, transaction_date = $4, notes = $5, payment_method = $6, updated_at = NOW()
-         WHERE id = $7 
+         SET description = $1, 
+             amount = $2, 
+             category = $3, 
+             transaction_date = $4, 
+             notes = $5, 
+             payment_method = $6,
+             customer_id = $7,
+             amount_received = $8,
+             updated_at = NOW()
+         WHERE id = $9 
          RETURNING *`,
         [
           updates.description,
@@ -194,6 +198,8 @@ export async function PUT(
           updates.date,
           updates.notes,
           updates.paymentMethod || null,
+          updates.customerId || null,
+          updates.amountReceived !== undefined ? updates.amountReceived : updates.amount,
           id,
         ],
       )
@@ -213,6 +219,8 @@ export async function PUT(
         createdAt: row.created_at,
         notes: row.notes,
         paymentMethod: row.payment_method,
+        customerId: row.customer_id,
+        amountReceived: row.amount_received ? Number.parseFloat(row.amount_received) : Number.parseFloat(row.amount),
       }
 
       return NextResponse.json({ transaction: updatedTransaction })

@@ -1,15 +1,17 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { CashFlowService, type CashFlowTransaction, type TransactionCategory, type PaymentMethod } from "@/lib/cash-flow"
-import { Package, AlertTriangle } from "lucide-react"
+import { CustomerService, type Customer } from "@/lib/customers"
+import { Package, AlertTriangle, Search, X, UserCircle } from "lucide-react"
 import { ApiClient } from "@/lib/api-client"
 
 interface TransactionProduct {
@@ -31,7 +33,7 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
     category: transaction.category,
     date: new Date(transaction.date).toISOString().split("T")[0],
     notes: transaction.notes || "",
-    additionalNotes: "", // Campo para observações adicionais editáveis
+    additionalNotes: "",
     paymentMethod: transaction.paymentMethod || ("" as PaymentMethod | ""),
   })
   
@@ -41,13 +43,48 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ✅ NOVO: Estados para clientes
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>(transaction.customerId || "")
+  const [customerSearchTerm, setCustomerSearchTerm] = useState<string>("")
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
+
   const categoryOptions = CashFlowService.getCategoryOptions(transaction.type)
   const paymentMethods = CashFlowService.getPaymentMethodOptions()
 
-  // Carregar produtos da transação
+  // ✅ NOVO: Filtro de clientes
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearchTerm.trim()) {
+      return customers
+    }
+    
+    const searchLower = customerSearchTerm.toLowerCase()
+    return customers.filter(customer => 
+      customer.name.toLowerCase().includes(searchLower) ||
+      customer.cpfCnpj?.toLowerCase().includes(searchLower) ||
+      customer.phone?.toLowerCase().includes(searchLower)
+    )
+  }, [customers, customerSearchTerm])
+
   useEffect(() => {
     loadTransactionProducts()
+    loadCustomers()
   }, [transaction.id])
+
+  // ✅ NOVO: Carregar clientes
+  const loadCustomers = async () => {
+    setIsLoadingCustomers(true)
+    const data = await CustomerService.getCustomers(true)
+    setCustomers(data)
+    setIsLoadingCustomers(false)
+  }
+
+  // ✅ NOVO: Limpar cliente quando mudar forma de pagamento
+  useEffect(() => {
+    if (formData.paymentMethod !== 'a_prazo') {
+      setSelectedCustomerId("")
+    }
+  }, [formData.paymentMethod])
 
   const loadTransactionProducts = async () => {
     setIsLoadingProducts(true)
@@ -58,14 +95,12 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
         if (data.products && data.products.length > 0) {
           setProducts(data.products)
           
-          // Inicializar quantidades
           const quantities: Record<string, number> = {}
           data.products.forEach((p: TransactionProduct) => {
             quantities[p.product_id] = p.quantity
           })
           setProductQuantities(quantities)
 
-          // Separar observações automáticas das observações adicionais
           if (transaction.notes) {
             const notesText = transaction.notes
             const productsPart = notesText.split('\n\nObservações: ')[0]
@@ -100,7 +135,6 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
     return originalQuantity - newQuantity
   }
 
-  // Atualizar observações automaticamente quando produtos mudam
   useEffect(() => {
     if (products.length > 0) {
       const productsList = products
@@ -110,18 +144,31 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
     }
   }, [productQuantities, products])
 
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
 
     try {
-      // Validar estoque antes de enviar
+      // ✅ NOVO: Validar cliente para venda a prazo
+      if (formData.paymentMethod === 'a_prazo' && !selectedCustomerId) {
+        setError("Selecione um cliente para venda a prazo")
+        setIsLoading(false)
+        return
+      }
+
+      // Validar estoque
       for (const product of products) {
         const newQuantity = productQuantities[product.product_id]
         const adjustment = getStockAdjustment(product.product_id, product.quantity)
         
-        // Se estiver aumentando a venda (adjustment negativo), verificar estoque
         if (adjustment < 0) {
           const additionalUnits = Math.abs(adjustment)
           if (product.current_stock < additionalUnits) {
@@ -132,7 +179,6 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
         }
       }
 
-      // Concatenar observações de produtos com observações adicionais
       let finalNotes = formData.notes
       if (formData.additionalNotes) {
         finalNotes = finalNotes ? `${finalNotes}\n\nObservações: ${formData.additionalNotes}` : formData.additionalNotes
@@ -147,7 +193,27 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
         paymentMethod: formData.paymentMethod || undefined,
       }
 
-      // Adicionar produtos se houver
+      // ✅ NOVO: Lógica para vendas a prazo
+      if (formData.paymentMethod === 'a_prazo' && selectedCustomerId) {
+        const customer = customers.find(c => c.id === selectedCustomerId)
+        updateData.customerId = selectedCustomerId
+        updateData.amountReceived = 0
+        
+        if (customer) {
+          updateData.description = `Venda a prazo - ${customer.name}`
+          const customerInfo = `Cliente: ${customer.name}${customer.cpfCnpj ? ` (${customer.cpfCnpj})` : ''}`
+          
+          if (updateData.notes) {
+            updateData.notes = `${customerInfo}\n\n${updateData.notes}`
+          } else {
+            updateData.notes = customerInfo
+          }
+        }
+      } else {
+        updateData.amountReceived = Number.parseFloat(formData.amount)
+        updateData.customerId = null
+      }
+
       if (products.length > 0) {
         updateData.products = products.map(p => ({
           productId: p.product_id,
@@ -184,7 +250,7 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
             </div>
           )}
 
-          {/* Seção de Produtos (se houver) */}
+          {/* Seção de Produtos */}
           {products.length > 0 && (
             <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
               <div className="flex items-center gap-2">
@@ -299,9 +365,121 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
                 />
               </div>
 
-              {/* Observações divididas em duas partes */}
+              {/* ✅ NOVO: Seleção de Cliente - Apenas para A Prazo */}
+              {formData.paymentMethod === 'a_prazo' && (
+                <div className="space-y-3 p-4 border-2 rounded-lg bg-orange-50 border-orange-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <UserCircle className="h-5 w-5 text-orange-600" />
+                    <h3 className="font-semibold text-orange-900">Venda a Prazo</h3>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="customerSearch" className="text-orange-900">Buscar Cliente *</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="customerSearch"
+                        type="text"
+                        placeholder="Digite o nome, CPF/CNPJ ou telefone do cliente..."
+                        value={customerSearchTerm}
+                        onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                        className="pl-10 bg-white border-orange-300"
+                        disabled={isLoadingCustomers}
+                      />
+                      {customerSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomerSearchTerm("")
+                            setSelectedCustomerId("")
+                          }}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {customerSearchTerm && (
+                    <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md bg-white p-2">
+                      {isLoadingCustomers ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+                      ) : filteredCustomers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          {customers.length === 0 
+                            ? "Nenhum cliente cadastrado" 
+                            : "Nenhum cliente encontrado"}
+                        </p>
+                      ) : (
+                        filteredCustomers.map((customer) => (
+                          <div
+                            key={customer.id}
+                            onClick={() => {
+                              setSelectedCustomerId(customer.id)
+                              setCustomerSearchTerm("")
+                            }}
+                            className={`p-3 rounded-md cursor-pointer transition-colors ${
+                              selectedCustomerId === customer.id
+                                ? "bg-orange-100 border-2 border-orange-500"
+                                : "bg-slate-50 hover:bg-slate-100 border border-slate-200"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-medium">{customer.name}</p>
+                                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                                  {customer.cpfCnpj && <span>CPF/CNPJ: {customer.cpfCnpj}</span>}
+                                  {customer.phone && (
+                                    <>
+                                      {customer.cpfCnpj && <span>•</span>}
+                                      <span>Tel: {customer.phone}</span>
+                                    </>
+                                  )}
+                                </div>
+                                {customer.balance !== undefined && customer.balance > 0 && (
+                                  <Badge variant="destructive" className="mt-1 text-xs">
+                                    Devendo: {formatCurrency(customer.balance)}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {selectedCustomerId && !customerSearchTerm && (
+                    <div className="p-3 bg-orange-100 border-2 border-orange-500 rounded-md">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-orange-900">Cliente Selecionado:</p>
+                          <p className="text-sm">
+                            {customers.find(c => c.id === selectedCustomerId)?.name}
+                            {customers.find(c => c.id === selectedCustomerId)?.cpfCnpj && 
+                              ` - ${customers.find(c => c.id === selectedCustomerId)?.cpfCnpj}`}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setSelectedCustomerId("")}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-orange-700 mt-2">
+                    ⚠️ Esta venda será registrada com valor recebido R$ 0,00. O pagamento deverá ser lançado posteriormente na aba "Contas a Receber".
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-4">
-                {/* Parte 1: Lista de produtos (readonly) */}
                 {products.length > 0 && (
                   <div className="space-y-2">
                     <Label htmlFor="productsNotes">Produtos da Venda</Label>
@@ -318,7 +496,6 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
                   </div>
                 )}
 
-                {/* Parte 2: Observações livres (editável) */}
                 <div className="space-y-2">
                   <Label htmlFor="additionalNotes">
                     Observações Adicionais {!products.length && "(opcional)"}
@@ -337,7 +514,7 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
               </div>
             </div>
           ) : (
-            // Layout para SAÍDA
+            // Layout para SAÍDA (mantém o original)
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -406,9 +583,7 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
                 </div>
               </div>
 
-              {/* Observações divididas em duas partes */}
               <div className="space-y-4">
-                {/* Parte 1: Lista de produtos (readonly) - só aparece se houver produtos */}
                 {products.length > 0 && (
                   <div className="space-y-2">
                     <Label htmlFor="productsNotesExit">Produtos da Venda</Label>
@@ -425,7 +600,6 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
                   </div>
                 )}
 
-                {/* Parte 2: Observações livres (editável) */}
                 <div className="space-y-2">
                   <Label htmlFor="additionalNotesExit">
                     Observações {!products.length && "(opcional)"}

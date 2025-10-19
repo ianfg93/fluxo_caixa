@@ -171,8 +171,15 @@ export function TransactionList({ type }: TransactionListProps) {
     return colors[category] || "bg-gray-100 text-gray-800"
   }
 
+  // ✅ MODIFICADO: Calcular total usando amount_received
   const getTotalAmount = () => {
-    return filteredTransactions.reduce((total, transaction) => total + transaction.amount, 0)
+    return filteredTransactions.reduce((total, transaction) => {
+      // Para vendas a prazo, somar apenas o valor recebido
+      const amountToSum = transaction.amountReceived !== undefined 
+        ? transaction.amountReceived 
+        : transaction.amount
+      return total + amountToSum
+    }, 0)
   }
 
   const getTransactionCount = () => {
@@ -312,9 +319,16 @@ export function TransactionList({ type }: TransactionListProps) {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
+                        {/* ✅ MODIFICADO: Exibir valor recebido */}
                         <p className={`text-lg font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
-                          {type === "entry" ? "+" : "-"} {formatCurrency(transaction.amount)}
+                          {type === "entry" ? "+" : "-"} {formatCurrency(transaction.amountReceived !== undefined ? transaction.amountReceived : transaction.amount)}
                         </p>
+                        {/* ✅ NOVO: Badge para vendas a prazo */}
+                        {transaction.paymentMethod === 'a_prazo' && transaction.amountReceived === 0 && (
+                          <Badge variant="outline" className="mt-1 text-orange-600 border-orange-600">
+                            Venda Total: {formatCurrency(transaction.amount)}
+                          </Badge>
+                        )}
                       </div>
                       {(canEditOwn(transaction) || canDelete()) && (
                         <div className="flex gap-2">

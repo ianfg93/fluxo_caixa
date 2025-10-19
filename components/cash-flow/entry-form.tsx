@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge"
 import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
 import { ProductService, type Product } from "@/lib/products"
 import { OpenOrderService, type OpenOrder } from "@/lib/open-orders"
+import { CustomerService, type Customer } from "@/lib/customers"
 import { Textarea } from "../ui/textarea"
-import { Plus, X, Package, Calculator, Search, Save, DollarSign, Receipt, ArrowLeft } from "lucide-react"
+import { Plus, X, Package, Calculator, Search, Save, DollarSign, Receipt, ArrowLeft, UserCircle } from "lucide-react"
 
 interface SelectedProduct {
   productId: string
@@ -50,10 +51,30 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
   const [isSavingOrder, setIsSavingOrder] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ✅ NOVO: Estados para clientes
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("")
+  const [customerSearchTerm, setCustomerSearchTerm] = useState<string>("")
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
+
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearchTerm.trim()) {
+      return customers
+    }
+    
+    const searchLower = customerSearchTerm.toLowerCase()
+    return customers.filter(customer => 
+      customer.name.toLowerCase().includes(searchLower) ||
+      customer.cpfCnpj?.toLowerCase().includes(searchLower) ||
+      customer.phone?.toLowerCase().includes(searchLower)
+    )
+  }, [customers, customerSearchTerm])
+
   const paymentMethods = CashFlowService.getPaymentMethodOptions()
 
   useEffect(() => {
     loadProducts()
+    loadCustomers()
   }, [])
 
   // Carregar dados da comanda selecionada
@@ -66,7 +87,7 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
           price: item.productPrice,
           quantity: item.quantity,
           subtotal: item.subtotal,
-          availableStock: 0, // Será atualizado ao carregar produtos
+          availableStock: 0,
         }))
       )
       setExtraAmount(selectedOrder.extraAmount.toString())
@@ -77,11 +98,26 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
     }
   }, [selectedOrder])
 
+  // ✅ NOVO: Limpar cliente quando mudar forma de pagamento
+  useEffect(() => {
+    if (formData.paymentMethod !== 'a_prazo') {
+      setSelectedCustomerId("")
+    }
+  }, [formData.paymentMethod])
+
   const loadProducts = async () => {
     setIsLoadingProducts(true)
     const data = await ProductService.getProducts()
     setProducts(data)
     setIsLoadingProducts(false)
+  }
+
+  // ✅ NOVO: Carregar clientes
+  const loadCustomers = async () => {
+    setIsLoadingCustomers(true)
+    const data = await CustomerService.getCustomers(true)
+    setCustomers(data)
+    setIsLoadingCustomers(false)
   }
 
   const filteredAvailableProducts = useMemo(() => {
@@ -163,7 +199,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
 
     const subtotal = product.price * quantity
 
-    // Se estiver editando uma comanda, adiciona o item direto no banco
     if (selectedOrder) {
       const success = await OpenOrderService.addItemToOrder({
         orderId: selectedOrder.id,
@@ -198,7 +233,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
   }
 
   const handleRemoveProduct = async (productId: string) => {
-    // Se estiver editando uma comanda, remove do banco
     if (selectedOrder) {
       const item = selectedProducts.find((p) => p.productId === productId)
       if (item) {
@@ -216,7 +250,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
     setSelectedProducts(selectedProducts.filter((p) => p.productId !== productId))
   }
 
-  // Salvar comanda sem finalizar
   const handleSaveOrder = async () => {
     if (!selectedOrder) return
 
@@ -254,6 +287,13 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         return
       }
 
+      // ✅ NOVO: Validar cliente para venda a prazo
+      if (formData.paymentMethod === 'a_prazo' && !selectedCustomerId) {
+        setError("Selecione um cliente para venda a prazo")
+        setIsLoading(false)
+        return
+      }
+
       const transactionData: any = {
         type: "entry",
         description: selectedOrder ? `Venda - ${selectedOrder.orderNumber}` : "Venda",
@@ -262,6 +302,26 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         date: new Date(formData.date),
         paymentMethod: formData.paymentMethod || undefined,
         notes: formData.notes || undefined,
+      }
+
+      // ✅ NOVO: Lógica para vendas a prazo
+      if (formData.paymentMethod === 'a_prazo' && selectedCustomerId) {
+        const customer = customers.find(c => c.id === selectedCustomerId)
+        transactionData.customerId = selectedCustomerId
+        transactionData.amountReceived = 0 // Venda a prazo não recebeu nada ainda
+        
+        if (customer) {
+          transactionData.description = `Venda a prazo - ${customer.name}`
+          const customerInfo = `Cliente: ${customer.name}${customer.cpfCnpj ? ` (${customer.cpfCnpj})` : ''}`
+          
+          if (transactionData.notes) {
+            transactionData.notes = `${customerInfo}\n\n${transactionData.notes}`
+          } else {
+            transactionData.notes = customerInfo
+          }
+        }
+      } else {
+        transactionData.amountReceived = totalAmount // Recebeu tudo
       }
 
       if (formData.additionalNotes) {
@@ -293,7 +353,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         return
       }
 
-      // Se era uma comanda, fecha ela
       if (selectedOrder) {
         await OpenOrderService.closeOrder(selectedOrder.id)
       }
@@ -352,7 +411,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
               <h3 className="font-semibold">Produtos da Venda</h3>
             </div>
 
-            {/* Campo de Busca */}
             <div className="space-y-2">
               <Label htmlFor="productSearch">Buscar Produto</Label>
               <div className="relative">
@@ -378,7 +436,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
               </div>
             </div>
 
-            {/* Lista de Produtos Disponíveis */}
             {productSearchTerm && (
               <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md bg-white p-2">
                 {isLoadingProducts ? (
@@ -417,7 +474,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
               </div>
             )}
 
-            {/* Produto Selecionado e Quantidade */}
             {selectedProduct && (
               <div className="space-y-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-md">
                 <div className="flex items-center justify-between">
@@ -464,7 +520,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
               </div>
             )}
 
-            {/* Lista de Produtos Adicionados */}
             {selectedProducts.length > 0 && (
               <div className="space-y-2 mt-4">
                 <Label>Produtos Adicionados:</Label>
@@ -564,6 +619,122 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
               </Select>
             </div>
           </div>
+
+          {/* ✅ NOVO: Seleção de Cliente - Apenas para A Prazo */}
+{formData.paymentMethod === 'a_prazo' && (
+  <div className="space-y-3 p-4 border-2 rounded-lg bg-orange-50 border-orange-300">
+    <div className="flex items-center gap-2 mb-2">
+      <UserCircle className="h-5 w-5 text-orange-600" />
+      <h3 className="font-semibold text-orange-900">Venda a Prazo</h3>
+    </div>
+    
+    <div className="space-y-2">
+      <Label htmlFor="customerSearch" className="text-orange-900">Buscar Cliente *</Label>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          id="customerSearch"
+          type="text"
+          placeholder="Digite o nome, CPF/CNPJ ou telefone do cliente..."
+          value={customerSearchTerm}
+          onChange={(e) => setCustomerSearchTerm(e.target.value)}
+          className="pl-10 bg-white border-orange-300"
+          disabled={isLoadingCustomers}
+        />
+        {customerSearchTerm && (
+          <button
+            type="button"
+            onClick={() => {
+              setCustomerSearchTerm("")
+              setSelectedCustomerId("")
+            }}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+
+    {/* Lista de Clientes Filtrados */}
+    {customerSearchTerm && (
+      <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md bg-white p-2">
+        {isLoadingCustomers ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+        ) : filteredCustomers.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            {customers.length === 0 
+              ? "Nenhum cliente cadastrado" 
+              : "Nenhum cliente encontrado"}
+          </p>
+        ) : (
+          filteredCustomers.map((customer) => (
+            <div
+              key={customer.id}
+              onClick={() => {
+                setSelectedCustomerId(customer.id)
+                setCustomerSearchTerm("")
+              }}
+              className={`p-3 rounded-md cursor-pointer transition-colors ${
+                selectedCustomerId === customer.id
+                  ? "bg-orange-100 border-2 border-orange-500"
+                  : "bg-slate-50 hover:bg-slate-100 border border-slate-200"
+              }`}
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <p className="font-medium">{customer.name}</p>
+                  <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                    {customer.cpfCnpj && <span>CPF/CNPJ: {customer.cpfCnpj}</span>}
+                    {customer.phone && (
+                      <>
+                        {customer.cpfCnpj && <span>•</span>}
+                        <span>Tel: {customer.phone}</span>
+                      </>
+                    )}
+                  </div>
+                  {customer.balance !== undefined && customer.balance > 0 && (
+                    <Badge variant="destructive" className="mt-1 text-xs">
+                      Devendo: {formatCurrency(customer.balance)}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    )}
+
+    {/* Cliente Selecionado */}
+    {selectedCustomerId && !customerSearchTerm && (
+      <div className="p-3 bg-orange-100 border-2 border-orange-500 rounded-md">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-orange-900">Cliente Selecionado:</p>
+            <p className="text-sm">
+              {customers.find(c => c.id === selectedCustomerId)?.name}
+              {customers.find(c => c.id === selectedCustomerId)?.cpfCnpj && 
+                ` - ${customers.find(c => c.id === selectedCustomerId)?.cpfCnpj}`}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedCustomerId("")}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )}
+
+    <p className="text-xs text-orange-700 mt-2">
+      ⚠️ Esta venda será registrada com valor recebido R$ 0,00. O pagamento deverá ser lançado posteriormente na aba "Contas a Receber".
+    </p>
+  </div>
+)}
 
           {/* Observações */}
           <div className="space-y-4">

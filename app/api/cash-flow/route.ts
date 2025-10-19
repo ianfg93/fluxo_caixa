@@ -29,9 +29,13 @@ export async function GET(request: NextRequest) {
         cft.payment_method,
         cft.created_by,
         cft.created_at,
-        u.name as created_by_name
+        cft.customer_id,
+        cft.amount_received,
+        u.name as created_by_name,
+        c.name as customer_name
       FROM cash_flow_transactions cft
       LEFT JOIN users u ON cft.created_by = u.id
+      LEFT JOIN customers c ON cft.customer_id = c.id
     `
 
     let queryParams: any[] = []
@@ -67,6 +71,9 @@ export async function GET(request: NextRequest) {
       createdAt: row.created_at,
       notes: row.notes,
       paymentMethod: row.payment_method,
+      customerId: row.customer_id,
+      customerName: row.customer_name,
+      amountReceived: row.amount_received ? Number.parseFloat(row.amount_received) : Number.parseFloat(row.amount),
     }))
 
     return NextResponse.json({ transactions })
@@ -82,114 +89,91 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    if (!ApiAuthService.hasPermission(user, 'create_entries')) {
-      return NextResponse.json({ error: "Sem permissão para criar transações" }, { status: 403 })
+    const body = await request.json()
+    const { 
+      type, 
+      description, 
+      amount, 
+      category, 
+      date, 
+      paymentMethod, 
+      notes, 
+      products,
+      customerId,
+      amountReceived 
+    } = body
+
+    if (!type || !description || !amount || !category || !date) {
+      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 })
     }
 
-    const transaction = await request.json()
+    const transactionDate = new Date(date)
 
-    // Validar payment_method se fornecido
-    if (transaction.paymentMethod && !['credito', 'debito', 'pix', 'dinheiro'].includes(transaction.paymentMethod)) {
-      return NextResponse.json({ error: "Forma de pagamento inválida" }, { status: 400 })
-    }
-
-    // NOVO: Suporte para múltiplos produtos
-    const products = transaction.products || []
-    
-    if (products.length > 0) {
-      // Validar todos os produtos antes de processar
-      for (const product of products) {
-        if (!product.productId || !product.quantity || product.quantity <= 0) {
-          return NextResponse.json({ error: "Dados inválidos de produto" }, { status: 400 })
-        }
-
-        // Verificar estoque disponível
-        const productCheck = await query(
-          "SELECT id, name, quantity FROM products WHERE id = $1 AND company_id = $2",
-          [product.productId, user.companyId]
-        )
-
-        if (productCheck.rows.length === 0) {
-          return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 })
-        }
-
-        if (productCheck.rows[0].quantity < product.quantity) {
-          return NextResponse.json({ 
-            error: `Estoque insuficiente para ${productCheck.rows[0].name}. Disponível: ${productCheck.rows[0].quantity}` 
-          }, { status: 400 })
-        }
-      }
-    }
-
-    // Iniciar transação SQL
-    await query("BEGIN")
-
-    try {
-      // Criar a transação principal
-      const result = await query(
-        `INSERT INTO cash_flow_transactions 
-         (company_id, type, description, amount, category, transaction_date, created_by, notes, payment_method) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-         RETURNING *`,
-        [
-          user.companyId,
-          transaction.type,
-          transaction.description,
-          transaction.amount,
-          transaction.category,
-          transaction.date,
-          user.id,
-          transaction.notes || null,
-          transaction.paymentMethod || null,
-        ],
+    const result = await query(
+      `
+      INSERT INTO cash_flow_transactions (
+        company_id,
+        type,
+        description,
+        amount,
+        category,
+        transaction_date,
+        payment_method,
+        notes,
+        created_by,
+        customer_id,
+        amount_received
       )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *
+      `,
+      [
+        user.companyId,
+        type,
+        description,
+        amount,
+        category,
+        transactionDate,
+        paymentMethod || null,
+        notes || null,
+        user.id,
+        customerId || null,
+        amountReceived !== undefined ? amountReceived : amount
+      ]
+    )
 
-      const transactionId = result.rows[0].id
-
-      // Processar produtos se houver
-      if (products.length > 0) {
-        for (const product of products) {
-          // Diminuir estoque
-          await query(
-            "UPDATE products SET quantity = quantity - $1 WHERE id = $2",
-            [product.quantity, product.productId]
-          )
-
-          // Registrar movimentação de estoque
-          await query(
-            `INSERT INTO stock_movements 
-             (product_id, transaction_id, quantity, type, created_by)
-             VALUES ($1, $2, $3, 'sale', $4)`,
-            [product.productId, transactionId, -product.quantity, user.id]
-          )
-        }
+    // Processar produtos se houver
+    if (products && Array.isArray(products) && products.length > 0) {
+      for (const product of products) {
+        await query(
+          `
+          UPDATE products
+          SET quantity = quantity - $1
+          WHERE id = $2 AND company_id = $3
+          `,
+          [product.quantity, product.productId, user.companyId]
+        )
       }
-
-      // Confirmar transação
-      await query("COMMIT")
-
-      const row = result.rows[0]
-      const newTransaction = {
-        id: row.id,
-        type: row.type,
-        description: row.description,
-        amount: Number.parseFloat(row.amount),
-        category: row.category,
-        date: row.transaction_date,
-        createdBy: user.name,
-        createdAt: row.created_at,
-        notes: row.notes,
-        paymentMethod: row.payment_method,
-      }
-
-      return NextResponse.json({ transaction: newTransaction })
-    } catch (error) {
-      // Reverter em caso de erro
-      await query("ROLLBACK")
-      throw error
     }
+
+    const transaction = {
+      id: result.rows[0].id,
+      type: result.rows[0].type,
+      description: result.rows[0].description,
+      amount: parseFloat(result.rows[0].amount),
+      category: result.rows[0].category,
+      date: result.rows[0].transaction_date,
+      paymentMethod: result.rows[0].payment_method,
+      notes: result.rows[0].notes,
+      createdBy: result.rows[0].created_by,
+      createdAt: result.rows[0].created_at,
+      customerId: result.rows[0].customer_id,
+      amountReceived: result.rows[0].amount_received ? parseFloat(result.rows[0].amount_received) : parseFloat(result.rows[0].amount),
+    }
+
+    return NextResponse.json({ transaction }, { status: 201 })
   } catch (error) {
-    console.error("Error creating transaction:", error)
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
+    console.error("Erro ao criar transação:", error)
+    return NextResponse.json({ error: "Erro ao criar transação" }, { status: 500 })
   }
 }

@@ -14,8 +14,8 @@ export type TransactionCategory =
   | "marketing"
   | "outros"
 
-// ✅ NOVO: Tipo para métodos de pagamento
-export type PaymentMethod = "credito" | "debito" | "pix" | "dinheiro"
+// ✅ MODIFICADO: Adicionar "a_prazo"
+export type PaymentMethod = "credito" | "debito" | "pix" | "dinheiro" | "a_prazo"
 
 export interface CashFlowTransaction {
   id: string
@@ -28,21 +28,25 @@ export interface CashFlowTransaction {
   createdAt: Date
   attachments?: string[]
   notes?: string
-  paymentMethod?: PaymentMethod // ✅ NOVO: Campo de método de pagamento
+  paymentMethod?: PaymentMethod
+  customerId?: string // ✅ NOVO
+  customerName?: string // ✅ NOVO
+  amountReceived?: number // ✅ NOVO
 }
 
 export class CashFlowService {
-  // ✅ NOVO: Método para obter opções de pagamento
+  // ✅ MODIFICADO: Adicionar "A Prazo"
   static getPaymentMethodOptions(): { value: PaymentMethod; label: string }[] {
     return [
       { value: "dinheiro", label: "Dinheiro" },
       { value: "pix", label: "PIX" },
       { value: "debito", label: "Débito" },
       { value: "credito", label: "Crédito" },
+      { value: "a_prazo", label: "A Prazo" }, // ✅ NOVO
     ]
   }
 
-  // ✅ NOVO: Método para formatar o nome do método de pagamento
+  // ✅ MODIFICADO: Formatar "A Prazo"
   static formatPaymentMethod(method?: PaymentMethod): string {
     if (!method) return "Não informado"
     
@@ -51,6 +55,7 @@ export class CashFlowService {
       pix: "PIX",
       debito: "Débito",
       credito: "Crédito",
+      a_prazo: "A Prazo", // ✅ NOVO
     }
     
     return methods[method] || method
