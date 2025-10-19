@@ -25,15 +25,43 @@ export interface DashboardMetrics {
 }
 
 export class ReportsService {
-  static async getDashboardMetrics(companyId?: string, startDate?: Date): Promise<DashboardMetrics> {
+  static async getDashboardMetrics(
+    companyId?: string, 
+    startDate?: Date, 
+    endDate?: Date
+  ): Promise<DashboardMetrics> {
     try {
       // Buscar todas as transações
       const transactions = await CashFlowService.getTransactions(undefined, companyId)
       
+      console.log('=== getDashboardMetrics ===')
+      console.log('Total transações:', transactions.length)
+      console.log('startDate:', startDate?.toISOString())
+      console.log('endDate:', endDate?.toISOString())
+      
       // Filtrar por data se fornecida
-      const filteredTransactions = startDate 
-        ? transactions.filter(t => new Date(t.date) >= startDate)
-        : transactions
+      let filteredTransactions = transactions
+      
+      if (startDate) {
+        filteredTransactions = filteredTransactions.filter(t => {
+          const transactionDate = new Date(t.date)
+          const isAfterStart = transactionDate >= startDate
+          const isBeforeEnd = endDate ? transactionDate <= endDate : true
+          
+          console.log(`Filtrando: ${t.description}`, {
+            transactionDate: transactionDate.toISOString(),
+            startDate: startDate.toISOString(),
+            endDate: endDate?.toISOString(),
+            isAfterStart,
+            isBeforeEnd,
+            result: isAfterStart && isBeforeEnd
+          })
+          
+          return isAfterStart && isBeforeEnd
+        })
+      }
+
+      console.log('Transações filtradas:', filteredTransactions.length)
 
       // Calcular balance baseado nas transações filtradas
       const entries = filteredTransactions
@@ -45,6 +73,10 @@ export class ReportsService {
         .reduce((sum, t) => sum + t.amount, 0)
 
       const balance = entries - exits
+
+      console.log('Entradas:', entries)
+      console.log('Saídas:', exits)
+      console.log('Balance:', balance)
 
       const payableTotals = await AccountsPayableService.getTotalsByStatus(companyId)
       const upcomingPayments = await AccountsPayableService.getUpcomingPayments(7, companyId)
@@ -70,14 +102,25 @@ export class ReportsService {
     }
   }
 
-  static async getMonthlyData(companyId?: string, startDate?: Date): Promise<MonthlyData[]> {
+  static async getMonthlyData(
+    companyId?: string, 
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<MonthlyData[]> {
     try {
       const transactions = await CashFlowService.getTransactions(undefined, companyId)
       
       // Filtrar por data se fornecida
-      const filteredTransactions = startDate 
-        ? transactions.filter(t => new Date(t.date) >= startDate)
-        : transactions
+      let filteredTransactions = transactions
+      
+      if (startDate) {
+        filteredTransactions = filteredTransactions.filter(t => {
+          const transactionDate = new Date(t.date)
+          const isAfterStart = transactionDate >= startDate
+          const isBeforeEnd = endDate ? transactionDate <= endDate : true
+          return isAfterStart && isBeforeEnd
+        })
+      }
 
       const monthlyMap = new Map<string, { entries: number; exits: number }>()
 
@@ -85,7 +128,7 @@ export class ReportsService {
       // Senão, últimos 6 meses como antes
       if (startDate) {
         const start = new Date(startDate)
-        const now = new Date()
+        const now = endDate || new Date()
         
         let current = new Date(start.getFullYear(), start.getMonth(), 1)
         const end = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -136,15 +179,23 @@ export class ReportsService {
   static async getCategoryBreakdown(
     type: "entry" | "exit", 
     companyId?: string, 
-    startDate?: Date
+    startDate?: Date,
+    endDate?: Date
   ): Promise<CategoryData[]> {
     try {
       const transactions = await CashFlowService.getTransactions(type, companyId)
       
       // Filtrar por data se fornecida
-      const filteredTransactions = startDate 
-        ? transactions.filter(t => new Date(t.date) >= startDate)
-        : transactions
+      let filteredTransactions = transactions
+      
+      if (startDate) {
+        filteredTransactions = filteredTransactions.filter(t => {
+          const transactionDate = new Date(t.date)
+          const isAfterStart = transactionDate >= startDate
+          const isBeforeEnd = endDate ? transactionDate <= endDate : true
+          return isAfterStart && isBeforeEnd
+        })
+      }
 
       const categoryMap = new Map<string, { amount: number; count: number }>()
 

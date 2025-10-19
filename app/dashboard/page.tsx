@@ -3,20 +3,16 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Plus, Calendar } from "lucide-react"
+import { Calendar, TrendingUp, TrendingDown } from "lucide-react"
 import { MetricsCards } from "@/components/dashboard/metrics-cards"
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart"
-import { CategoryChart } from "@/components/dashboard/category-chart"
 import { AlertsPanel } from "@/components/dashboard/alerts-panel"
 import { ReportsService } from "@/lib/reports"
 import { CashFlowService } from "@/lib/cash-flow"
 import { useAuth } from "@/hooks/use-auth"
-import { TrendingUp, TrendingDown } from "lucide-react"
-import { CreateCompanyModal } from "@/components/companies/create-company-modal"
 
-type PeriodFilter = "month" | "quarter" | "year" | "all"
+type PeriodFilter = "day" | "month" | "quarter" | "year" | "all"
 
 export default function DashboardPage() {
   const { authState } = useAuth()
@@ -29,7 +25,7 @@ export default function DashboardPage() {
   
   const [availableCompanies, setAvailableCompanies] = useState<any[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>("")
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>("month")
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>("day")
 
   const isMaster = authState.user?.role === 'master'
   const isAdmin = authState.user?.role === 'administrator' || isMaster
@@ -48,7 +44,7 @@ export default function DashboardPage() {
         { id: 'empresa-exemplo', name: 'Empresa Exemplo Ltda' }
       ])
     } catch (error) {
-      
+      console.error('Erro ao carregar empresas:', error)
     }
   }
 
@@ -57,6 +53,10 @@ export default function DashboardPage() {
     const now = new Date()
     
     switch (period) {
+      case "day":
+        // Início do dia atual (00:00:00)
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+      
       case "month":
         // Primeiro dia do mês atual
         return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -79,10 +79,33 @@ export default function DashboardPage() {
     }
   }
 
+  // Calcular data de fim para períodos específicos
+  function getEndDate(period: PeriodFilter): Date | undefined {
+    const now = new Date()
+    
+    switch (period) {
+      case "day":
+        // Final do dia atual (23:59:59.999)
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+      
+      default:
+        // Para outros períodos, não há data de fim específica
+        return undefined
+    }
+  }
+
   function getPeriodLabel(period: PeriodFilter): string {
     const now = new Date()
     
     switch (period) {
+      case "day":
+        return now.toLocaleDateString("pt-BR", { 
+          weekday: "long", 
+          day: "numeric", 
+          month: "long", 
+          year: "numeric" 
+        })
+      
       case "month":
         return now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
       
@@ -107,22 +130,34 @@ export default function DashboardPage() {
 
       const companyFilter = isMaster && selectedCompany && selectedCompany !== 'all' ? selectedCompany : undefined
       const startDate = getStartDate(selectedPeriod)
+      const endDate = getEndDate(selectedPeriod)
 
       const [dashboardMetrics, monthlyReport, entryCategoryData, exitCategoryData, transactions] = await Promise.all([
-        ReportsService.getDashboardMetrics(companyFilter, startDate),
-        ReportsService.getMonthlyData(companyFilter, startDate),
-        ReportsService.getCategoryBreakdown("entry", companyFilter, startDate),
-        ReportsService.getCategoryBreakdown("exit", companyFilter, startDate),
+        ReportsService.getDashboardMetrics(companyFilter, startDate, endDate),
+        ReportsService.getMonthlyData(companyFilter, startDate, endDate),
+        ReportsService.getCategoryBreakdown("entry", companyFilter, startDate, endDate),
+        ReportsService.getCategoryBreakdown("exit", companyFilter, startDate, endDate),
         CashFlowService.getTransactions(undefined, companyFilter),
       ])
+
+      // Filtrar transações pelo período selecionado
+      let filteredTransactions = transactions
+      if (startDate) {
+        filteredTransactions = transactions.filter(t => {
+          const transactionDate = new Date(t.date)
+          const isAfterStart = transactionDate >= startDate
+          const isBeforeEnd = endDate ? transactionDate <= endDate : true
+          return isAfterStart && isBeforeEnd
+        })
+      }
 
       setMetrics(dashboardMetrics)
       setMonthlyData(monthlyReport)
       setEntryCategories(entryCategoryData)
       setExitCategories(exitCategoryData)
-      setRecentTransactions(transactions.slice(0, 5))
+      setRecentTransactions(filteredTransactions.slice(0, 5))
     } catch (error) {
-      
+      console.error('Erro ao carregar dados do dashboard:', error)
     } finally {
       setLoading(false)
     }
@@ -173,6 +208,13 @@ export default function DashboardPage() {
             
             <div className="flex flex-wrap gap-2">
               <Button
+                variant={selectedPeriod === "day" ? "default" : "outline"}
+                onClick={() => setSelectedPeriod("day")}
+                size="sm"
+              >
+                Hoje
+              </Button>
+              <Button
                 variant={selectedPeriod === "month" ? "default" : "outline"}
                 onClick={() => setSelectedPeriod("month")}
                 size="sm"
@@ -217,14 +259,11 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          <MetricsCards metrics={metrics} />
+          <MetricsCards metrics={metrics} period={selectedPeriod} />
 
           <Tabs defaultValue="overview" className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              {/* <TabsTrigger value="cash-flow">Fluxo de Caixa</TabsTrigger>
-              <TabsTrigger value="categories">Categorias</TabsTrigger>
-              <TabsTrigger value="alerts">Alertas</TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
