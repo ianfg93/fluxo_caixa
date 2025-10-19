@@ -25,6 +25,7 @@ export async function GET(
         name,
         price,
         quantity,
+        barcode,
         company_id as "companyId",
         created_at as "createdAt",
         updated_at as "updatedAt"
@@ -123,6 +124,13 @@ export async function PUT(
       paramCount++
     }
 
+    // ✅ NOVO: Adicionar barcode
+    if (updates.barcode !== undefined) {
+      updateFields.push(`barcode = $${paramCount}`)
+      updateValues.push(updates.barcode || null)
+      paramCount++
+    }
+
     if (updateFields.length === 0) {
       return NextResponse.json({ error: "Nenhum campo para atualizar" }, { status: 400 })
     }
@@ -134,7 +142,7 @@ export async function PUT(
       `UPDATE products 
        SET ${updateFields.join(', ')}
        WHERE id = $${paramCount}
-       RETURNING id, code, name, price, quantity, company_id as "companyId", created_at as "createdAt", updated_at as "updatedAt"`,
+       RETURNING id, code, name, price, quantity, barcode, company_id as "companyId", created_at as "createdAt", updated_at as "updatedAt"`,
       updateValues
     )
 

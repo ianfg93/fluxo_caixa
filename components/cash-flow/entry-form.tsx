@@ -130,8 +130,9 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         
         const matchesName = p.name.toLowerCase().includes(searchLower)
         const matchesCode = p.code.toString().includes(searchLower)
+        const matchesBarcode = p.barcode && p.barcode.toLowerCase().includes(searchLower)
         
-        return matchesName || matchesCode
+        return matchesName || matchesCode || matchesBarcode
       })
   }, [products, productSearchTerm])
 

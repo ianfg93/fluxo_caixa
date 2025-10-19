@@ -4,11 +4,12 @@ export interface Product {
   id: string
   code: number
   name: string
-  price: number  // ← NOVO: Preço unitário do produto
+  price: number
   quantity: number
   companyId: string
   createdAt: Date
   updatedAt: Date
+  barcode?: string
 }
 
 export interface StockMovement {
@@ -86,7 +87,7 @@ export class ProductService {
 
   static async updateProduct(
     id: string,
-    updates: Partial<Pick<Product, "name" | "quantity" | "price">>  // ← Adicionado price
+    updates: Partial<Pick<Product, "name" | "quantity" | "price" | "barcode">>  // ✅ ADICIONADO: barcode
   ): Promise<Product | null> {
     try {
       const response = await ApiClient.put(`/api/products/${id}`, updates)
@@ -132,7 +133,6 @@ export class ProductService {
     }
   }
 
-  // ← NOVO: Método helper para formatar preço
   static formatPrice(price: number): string {
     return price.toLocaleString("pt-BR", {
       style: "currency",

@@ -19,7 +19,7 @@ export default function ProductsPage() {
   const [showAddStockForm, setShowAddStockForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [addingStockProduct, setAddingStockProduct] = useState<Product | null>(null)
-  const [formData, setFormData] = useState({ name: "", quantity: "0", price: "0.00" })
+  const [formData, setFormData] = useState({ name: "", quantity: "0", price: "0.00", barcode: "" })
   const [addStockQuantity, setAddStockQuantity] = useState("0")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { authState } = useAuth()
@@ -67,16 +67,18 @@ export default function ProductsPage() {
           name: formData.name,
           quantity: parseInt(formData.quantity),
           price: price,
+          barcode: formData.barcode || undefined,
         })
       } else {
         await ProductService.addProduct({
           name: formData.name,
           quantity: parseInt(formData.quantity),
           price: price,
+          barcode: formData.barcode || undefined,
         })
       }
 
-      setFormData({ name: "", quantity: "0", price: "0.00" })
+      setFormData({ name: "", quantity: "0", price: "0.00", barcode: "" })
       setShowForm(false)
       setEditingProduct(null)
       loadProducts()
@@ -92,7 +94,7 @@ export default function ProductsPage() {
     setAddingStockProduct(product)
     setAddStockQuantity("0")
     setShowForm(false)
-    setEditingProduct(null) // Fechar edição se estiver aberta
+    setEditingProduct(null)
   }
 
   const handleAddStockSubmit = async (e: React.FormEvent) => {
@@ -134,8 +136,9 @@ export default function ProductsPage() {
       name: product.name,
       quantity: product.quantity.toString(),
       price: (Number(product.price) || 0).toFixed(2),
+      barcode: product.barcode || "",
     })
-    setShowForm(false) // Não abrir o form do topo
+    setShowForm(false)
   }
 
   const handleDelete = async (product: Product) => {
@@ -152,7 +155,7 @@ export default function ProductsPage() {
   }
 
   const handleCancel = () => {
-    setFormData({ name: "", quantity: "0", price: "0.00" })
+    setFormData({ name: "", quantity: "0", price: "0.00", barcode: "" })
     setShowForm(false)
     setEditingProduct(null)
   }
@@ -163,51 +166,75 @@ export default function ProductsPage() {
     setAddingStockProduct(null)
   }
 
-  // Função de filtrar e ordenar produtos
   const getFilteredAndSortedProducts = () => {
-    let filtered = [...products]
+  let filtered = [...products]
 
-    // Filtro de busca por nome
-    if (searchTerm) {
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
+  console.log('========== DEBUG FILTRO ==========')
+  console.log('Total de produtos:', products.length)
+  console.log('Produtos com barcode:', products.map(p => ({ 
+    codigo: p.code,
+    nome: p.name, 
+    barcode: p.barcode || 'SEM BARCODE'
+  })))
 
-    // Filtro de estoque baixo
-    if (showOnlyLowStock) {
-      filtered = filtered.filter(product => 
-        product.quantity > 0 && product.quantity <= lowStockThreshold
-      )
-    }
-
-    // Filtro de produtos sem estoque
-    if (showOnlyOutOfStock) {
-      filtered = filtered.filter(product => product.quantity === 0)
-    }
-
-    // Ordenação
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "code":
-          return a.code - b.code
-        case "name":
-          return a.name.localeCompare(b.name)
-        case "quantity-asc":
-          return a.quantity - b.quantity
-        case "quantity-desc":
-          return b.quantity - a.quantity
-        case "price-asc":
-          return a.price - b.price
-        case "price-desc":
-          return b.price - a.price
-        default:
-          return 0
-      }
+  // Filtro de busca por nome
+  if (searchTerm) {
+    const searchLower = searchTerm.toLowerCase()
+    console.log('>>> Termo buscado:', searchLower)
+    
+    filtered = filtered.filter(product => {
+      const matchName = product.name.toLowerCase().includes(searchLower)
+      const matchCode = product.code.toString().includes(searchLower)
+      const matchBarcode = product.barcode && product.barcode.toLowerCase().includes(searchLower)
+      
+      console.log(`Produto ${product.name}:`, {
+        matchName,
+        matchCode, 
+        matchBarcode,
+        barcode: product.barcode
+      })
+      
+      return matchName || matchCode || matchBarcode
     })
-
-    return filtered
+    
+    console.log('>>> Produtos encontrados:', filtered.length)
   }
+
+  // Filtro de estoque baixo
+  if (showOnlyLowStock) {
+    filtered = filtered.filter(product => 
+      product.quantity > 0 && product.quantity <= lowStockThreshold
+    )
+  }
+
+  // Filtro de produtos sem estoque
+  if (showOnlyOutOfStock) {
+    filtered = filtered.filter(product => product.quantity === 0)
+  }
+
+  // Ordenação
+  filtered.sort((a, b) => {
+    switch (sortBy) {
+      case "code":
+        return a.code - b.code
+      case "name":
+        return a.name.localeCompare(b.name)
+      case "quantity-asc":
+        return a.quantity - b.quantity
+      case "quantity-desc":
+        return b.quantity - a.quantity
+      case "price-asc":
+        return a.price - b.price
+      case "price-desc":
+        return b.price - a.price
+      default:
+        return 0
+    }
+  })
+
+  console.log('========== FIM DEBUG ==========')
+  return filtered
+}
 
   const filteredProducts = getFilteredAndSortedProducts()
 
@@ -255,7 +282,7 @@ export default function ProductsPage() {
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4">Novo Produto</h3>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome do Produto *</Label>
                     <Input
@@ -266,6 +293,18 @@ export default function ProductsPage() {
                       required
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="barcode">Código de Barras</Label>
+                    <Input
+                      id="barcode"
+                      value={formData.barcode}
+                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                      placeholder="Ex: 7891234567890"
+                      maxLength={50}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="price">Preço Unitário (R$) *</Label>
                     <div className="relative">
@@ -307,8 +346,6 @@ export default function ProductsPage() {
             </CardContent>
           </Card>
         )}
-
-
 
         {/* Barra de Filtros */}
         {!loading && products.length > 0 && (
@@ -475,7 +512,7 @@ export default function ProductsPage() {
                       <div>
                         <h3 className="text-lg font-semibold mb-4">Editar Produto</h3>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="edit-name">Nome do Produto *</Label>
                               <Input
@@ -486,6 +523,18 @@ export default function ProductsPage() {
                                 required
                               />
                             </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-barcode">Código de Barras</Label>
+                              <Input
+                                id="edit-barcode"
+                                value={formData.barcode}
+                                onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                                placeholder="Ex: 7891234567890"
+                                maxLength={50}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="edit-price">Preço Unitário (R$) *</Label>
                               <div className="relative">
@@ -601,6 +650,14 @@ export default function ProductsPage() {
                                 {formatCurrency(product.price)}
                               </span>
                             </p>
+                            {product.barcode && (
+                              <>
+                                <span className="text-muted-foreground">|</span>
+                                <p className="text-sm text-muted-foreground">
+                                  Cód. Barras: <span className="font-mono font-semibold">{product.barcode}</span>
+                                </p>
+                              </>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-2">
