@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea"
 import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
 import { type Customer } from "@/lib/customers"
+import { useAuth } from "@/hooks/use-auth"
 import { DollarSign, AlertCircle } from "lucide-react"
 
 interface PaymentFormProps {
@@ -18,6 +19,7 @@ interface PaymentFormProps {
 }
 
 export function PaymentForm({ customer, onSuccess, onCancel }: PaymentFormProps) {
+  const { authState } = useAuth()
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     amount: "",
@@ -57,6 +59,16 @@ export function PaymentForm({ customer, onSuccess, onCancel }: PaymentFormProps)
         return
       }
 
+      let notes = ``
+      
+      if (authState.user) {
+        notes += `\n\Recebido por: ${authState.user.name}`
+      }
+      
+      if (formData.notes) {
+        notes += `\n\nObservações: ${formData.notes}`
+      }
+
       const transactionData: any = {
         type: "entry",
         description: `Pagamento - ${customer.name}`,
@@ -66,7 +78,7 @@ export function PaymentForm({ customer, onSuccess, onCancel }: PaymentFormProps)
         paymentMethod: formData.paymentMethod || undefined,
         customerId: customer.id,
         amountReceived: amount, // Pagamento recebe o valor total
-        notes: `Pagamento de conta a prazo\nCliente: ${customer.name}${customer.cpfCnpj ? `\nCPF/CNPJ: ${customer.cpfCnpj}` : ''}${formData.notes ? `\n\nObservações: ${formData.notes}` : ''}`,
+        notes: notes,
       }
 
       const result = await CashFlowService.addTransaction(transactionData)

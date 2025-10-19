@@ -15,11 +15,6 @@ export async function GET(request: NextRequest) {
     }
     
     console.log('2. Usuário:', user.name, 'Role:', user.role)
-    
-    if (user.role !== 'master' && user.role !== 'administrator') {
-      console.log('Sem permissão')
-      return NextResponse.json({ error: "Sem permissão" }, { status: 403 })
-    }
 
     console.log('3. Montando query...')
     const { searchParams } = new URL(request.url)
