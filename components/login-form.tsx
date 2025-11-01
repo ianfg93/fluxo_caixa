@@ -35,16 +35,16 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30">
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">Sistema de Fluxo de Caixa</CardTitle>
-          <CardDescription>Entre com suas credenciais para acessar o sistema</CardDescription>
+        <CardHeader className="text-center p-4 md:p-6">
+          <CardTitle className="text-xl md:text-2xl font-bold text-primary">Sistema de Fluxo de Caixa</CardTitle>
+          <CardDescription className="text-xs md:text-sm">Entre com suas credenciais para acessar o sistema</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 md:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm md:text-base">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -52,10 +52,11 @@ export function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
                 required
+                className="text-sm md:text-base"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password" className="text-sm md:text-base">Senha</Label>
               <Input
                 id="password"
                 type="password"
@@ -63,14 +64,15 @@ export function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                className="text-sm md:text-base"
               />
             </div>
             {error && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="text-xs md:text-sm">{error}</AlertDescription>
               </Alert>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full text-sm md:text-base" disabled={isLoading}>
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
           </form>

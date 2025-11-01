@@ -215,22 +215,22 @@ export function TransactionList({ type }: TransactionListProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           {type === "entry" ? (
-            <TrendingUp className="h-6 w-6 text-green-600" />
+            <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-green-600 flex-shrink-0" />
           ) : (
-            <TrendingDown className="h-6 w-6 text-red-600" />
+            <TrendingDown className="h-5 w-5 md:h-6 md:w-6 text-red-600 flex-shrink-0" />
           )}
           <div>
-            <h1 className="text-2xl font-bold">{type === "entry" ? "Entradas" : "Saídas"}</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl md:text-2xl font-bold">{type === "entry" ? "Entradas" : "Saídas"}</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">
               Gerencie as {type === "entry" ? "entradas" : "saídas"} do fluxo de caixa
             </p>
           </div>
         </div>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto text-sm md:text-base">
           <Plus className="h-4 w-4 mr-2" />
           Nova {type === "entry" ? "Venda" : "Saída"}
         </Button>
@@ -241,9 +241,9 @@ export function TransactionList({ type }: TransactionListProps) {
         <OpenOrdersManager onSelectOrder={handleSelectOrder} />
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 lg:items-stretch">
         <div className="flex-1 lg:flex-[2]">
-          <DateFilter 
+          <DateFilter
             onFilterChange={setDateFilter}
             currentFilter={dateFilter}
           />
@@ -251,14 +251,14 @@ export function TransactionList({ type }: TransactionListProps) {
 
         {getTransactionCount() > 0 && (
           <div className="lg:flex-[1]">
-            <Card className="min-h-[140px]">
-              <CardContent className="p-4 h-full flex flex-col justify-center">
+            <Card className="min-h-[100px] md:min-h-[140px]">
+              <CardContent className="p-3 md:p-4 h-full flex flex-col justify-center">
                 <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">
+                  <p className="text-xs md:text-sm text-muted-foreground mb-1">
                     <span className="font-medium">{getTransactionCount()}</span> {type === "entry" ? "entrada(s)" : "saída(s)"}
                   </p>
                   <p className="text-xs text-muted-foreground mb-2">Total do período</p>
-                  <p className={`text-2xl font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
+                  <p className={`text-xl md:text-2xl font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
                     {type === "entry" ? "+" : "-"} {formatCurrency(getTotalAmount())}
                   </p>
                 </div>
@@ -296,59 +296,60 @@ export function TransactionList({ type }: TransactionListProps) {
           ) : (
             filteredTransactions.map((transaction) => (
               <Card key={transaction.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h3 className="font-semibold">{transaction.description}</h3>
-                        <Badge className={getCategoryColor(transaction.category)}>
+                <CardContent className="p-4 md:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <h3 className="font-semibold text-sm md:text-base">{transaction.description}</h3>
+                        <Badge className={`${getCategoryColor(transaction.category)} text-xs`}>
                           {transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)}
                         </Badge>
                         {transaction.paymentMethod && (
-                          <Badge variant="outline" className="flex items-center gap-1">
+                          <Badge variant="outline" className="flex items-center gap-1 text-xs">
                             <CreditCard className="h-3 w-3" />
                             {CashFlowService.formatPaymentMethod(transaction.paymentMethod)}
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs md:text-sm text-muted-foreground">
                         <span>Data: {formatDate(transaction.date)}</span>
-                        <span>Por: {transaction.createdBy}</span>
+                        <span className="truncate">Por: {transaction.createdBy}</span>
                       </div>
-                      {transaction.notes && <p className="text-sm text-muted-foreground mt-2">{transaction.notes}</p>}
+                      {transaction.notes && <p className="text-xs md:text-sm text-muted-foreground mt-2">{transaction.notes}</p>}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
+                    <div className="flex items-center gap-3 sm:flex-col sm:items-end">
+                      <div className="text-left sm:text-right flex-1 sm:flex-auto">
                         {/* ✅ MODIFICADO: Exibir valor recebido */}
-                        <p className={`text-lg font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
+                        <p className={`text-base md:text-lg font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
                           {type === "entry" ? "+" : "-"} {formatCurrency(transaction.amountReceived !== undefined ? transaction.amountReceived : transaction.amount)}
                         </p>
                         {/* ✅ NOVO: Badge para vendas a prazo */}
                         {transaction.paymentMethod === 'a_prazo' && transaction.amountReceived === 0 && (
-                          <Badge variant="outline" className="mt-1 text-orange-600 border-orange-600">
-                            Venda Total: {formatCurrency(transaction.amount)}
+                          <Badge variant="outline" className="mt-1 text-orange-600 border-orange-600 text-xs">
+                            Total: {formatCurrency(transaction.amount)}
                           </Badge>
                         )}
                       </div>
                       {(canEditOwn(transaction) || canDelete()) && (
                         <div className="flex gap-2">
                           {canEditOwn(transaction) && (
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="outline"
                               onClick={() => handleEdit(transaction)}
                               title="Editar transação"
+                              className="h-8 w-8 p-0"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                           )}
                           {canDelete() && (
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
+                            <Button
+                              size="sm"
+                              variant="outline"
                               onClick={() => handleDelete(transaction)}
                               title="Excluir transação"
-                              className="hover:bg-red-50 hover:text-red-600"
+                              className="hover:bg-red-50 hover:text-red-600 h-8 w-8 p-0"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

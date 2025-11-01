@@ -24,19 +24,31 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Fluxo de Caixa Mensal</CardTitle>
-        <CardDescription>Comparativo de entradas e saídas dos últimos 6 meses</CardDescription>
+      <CardHeader className="p-4 md:p-6">
+        <CardTitle className="text-lg md:text-xl">Fluxo de Caixa Mensal</CardTitle>
+        <CardDescription className="text-xs md:text-sm">Comparativo de entradas e saídas dos últimos 6 meses</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="h-80">
+      <CardContent className="p-4 md:p-6 pt-0">
+        <div className="h-64 md:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={formatCurrency} />
-              <Tooltip formatter={(value: number) => [formatCurrency(value), ""]} labelStyle={{ color: "#000" }} />
-              <Legend />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 12 }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tickFormatter={formatCurrency}
+                tick={{ fontSize: 12 }}
+                width={80}
+              />
+              <Tooltip
+                formatter={(value: number) => [formatCurrency(value), ""]}
+                labelStyle={{ color: "#000" }}
+                contentStyle={{ fontSize: '12px' }}
+              />
+              <Legend wrapperStyle={{ fontSize: '12px' }} />
               <Bar dataKey="entries" fill="#22c55e" name="Entradas" />
               <Bar dataKey="exits" fill="#ef4444" name="Saídas" />
             </BarChart>

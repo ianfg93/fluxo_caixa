@@ -186,31 +186,30 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Visão geral completa do fluxo de caixa
-            {selectedCompany && selectedCompany !== 'all' && ` - ${availableCompanies.find(c => c.id === selectedCompany)?.name}`}
-          </p>
-        </div>
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
+        <p className="text-sm md:text-base text-muted-foreground">
+          Visão geral completa do fluxo de caixa
+          {selectedCompany && selectedCompany !== 'all' && ` - ${availableCompanies.find(c => c.id === selectedCompany)?.name}`}
+        </p>
       </div>
 
       {/* Filtros */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <CardContent className="pt-4 md:pt-6">
+          <div className="flex flex-col gap-3 md:gap-4">
             <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <span className="font-medium">Período:</span>
+              <Calendar className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+              <span className="text-sm md:text-base font-medium">Período:</span>
             </div>
-            
+
             <div className="flex flex-wrap gap-2">
               <Button
                 variant={selectedPeriod === "day" ? "default" : "outline"}
                 onClick={() => setSelectedPeriod("day")}
                 size="sm"
+                className="text-xs md:text-sm"
               >
                 Hoje
               </Button>
@@ -218,13 +217,15 @@ export default function DashboardPage() {
                 variant={selectedPeriod === "month" ? "default" : "outline"}
                 onClick={() => setSelectedPeriod("month")}
                 size="sm"
+                className="text-xs md:text-sm"
               >
-                Mês Atual
+                Mês
               </Button>
               <Button
                 variant={selectedPeriod === "quarter" ? "default" : "outline"}
                 onClick={() => setSelectedPeriod("quarter")}
                 size="sm"
+                className="text-xs md:text-sm"
               >
                 Trimestre
               </Button>
@@ -232,6 +233,7 @@ export default function DashboardPage() {
                 variant={selectedPeriod === "year" ? "default" : "outline"}
                 onClick={() => setSelectedPeriod("year")}
                 size="sm"
+                className="text-xs md:text-sm"
               >
                 Ano
               </Button>
@@ -239,12 +241,13 @@ export default function DashboardPage() {
                 variant={selectedPeriod === "all" ? "default" : "outline"}
                 onClick={() => setSelectedPeriod("all")}
                 size="sm"
+                className="text-xs md:text-sm"
               >
                 Total
               </Button>
             </div>
 
-            <div className="flex-1 text-sm text-muted-foreground sm:text-right">
+            <div className="text-xs md:text-sm text-muted-foreground">
               Exibindo: <strong>{getPeriodLabel(selectedPeriod)}</strong>
             </div>
           </div>
@@ -261,43 +264,43 @@ export default function DashboardPage() {
         <>
           <MetricsCards metrics={metrics} period={selectedPeriod} />
 
-          <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
+            <TabsList className="grid w-full grid-cols-1">
+              <TabsTrigger value="overview" className="text-sm md:text-base">Visão Geral</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TabsContent value="overview" className="space-y-4 md:space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                 <CashFlowChart data={monthlyData} />
                 <AlertsPanel />
               </div>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Transações Recentes</CardTitle>
-                  <CardDescription>Últimas movimentações do fluxo de caixa</CardDescription>
+                  <CardTitle className="text-lg md:text-xl">Transações Recentes</CardTitle>
+                  <CardDescription className="text-xs md:text-sm">Últimas movimentações do fluxo de caixa</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-3 md:space-y-4">
                     {recentTransactions.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-8">Nenhuma transação encontrada</p>
+                      <p className="text-sm text-muted-foreground text-center py-8">Nenhuma transação encontrada</p>
                     ) : (
                       recentTransactions.map((transaction) => (
-                        <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div key={transaction.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 md:p-4 border rounded-lg">
                           <div className="flex items-center gap-3">
                             {transaction.type === "entry" ? (
-                              <TrendingUp className="h-4 w-4 text-green-600" />
+                              <TrendingUp className="h-4 w-4 text-green-600 flex-shrink-0" />
                             ) : (
-                              <TrendingDown className="h-4 w-4 text-red-600" />
+                              <TrendingDown className="h-4 w-4 text-red-600 flex-shrink-0" />
                             )}
-                            <div>
-                              <p className="font-medium">{transaction.description}</p>
-                              <p className="text-sm text-muted-foreground">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm md:text-base truncate">{transaction.description}</p>
+                              <p className="text-xs md:text-sm text-muted-foreground">
                                 {formatDate(transaction.date)} • {transaction.category}
                               </p>
                             </div>
                           </div>
-                          <div className={`font-bold ${transaction.type === "entry" ? "text-green-600" : "text-red-600"}`}>
+                          <div className={`font-bold text-sm md:text-base whitespace-nowrap ${transaction.type === "entry" ? "text-green-600" : "text-red-600"}`}>
                             {transaction.type === "entry" ? "+" : "-"} {formatCurrency(transaction.amount)}
                           </div>
                         </div>

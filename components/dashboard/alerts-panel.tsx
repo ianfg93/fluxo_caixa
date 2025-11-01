@@ -106,12 +106,12 @@ export function AlertsPanel() {
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Alertas e Notificações</CardTitle>
-          <CardDescription>Contas que requerem atenção imediata</CardDescription>
+        <CardHeader className="p-4 md:p-6">
+          <CardTitle className="text-lg md:text-xl">Alertas e Notificações</CardTitle>
+          <CardDescription className="text-xs md:text-sm">Contas que requerem atenção imediata</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-8">Carregando alertas...</p>
+        <CardContent className="p-4 md:p-6 pt-0">
+          <p className="text-sm text-muted-foreground text-center py-8">Carregando alertas...</p>
         </CardContent>
       </Card>
     )
@@ -119,27 +119,29 @@ export function AlertsPanel() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Alertas e Notificações</CardTitle>
-        <CardDescription>Contas que requerem atenção imediata</CardDescription>
+      <CardHeader className="p-4 md:p-6">
+        <CardTitle className="text-lg md:text-xl">Alertas e Notificações</CardTitle>
+        <CardDescription className="text-xs md:text-sm">Contas que requerem atenção imediata</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className="p-4 md:p-6 pt-0">
+        <div className="space-y-3 md:space-y-4 max-h-[400px] md:max-h-[500px] overflow-y-auto">
           {alerts.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Nenhum alerta no momento</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhum alerta no momento</p>
           ) : (
             alerts.map((alert, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 border rounded-lg">
-                {getAlertIcon(alert.type)}
+              <div key={index} className="flex items-start gap-2 md:gap-3 p-2 md:p-3 border rounded-lg">
+                <div className="flex-shrink-0 mt-0.5">
+                  {getAlertIcon(alert.type)}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-sm">{alert.title}</h4>
-                    <Badge className={getAlertColor(alert.type)}>
+                  <div className="flex flex-wrap items-center gap-1 md:gap-2 mb-1">
+                    <h4 className="font-medium text-xs md:text-sm">{alert.title}</h4>
+                    <Badge className={`${getAlertColor(alert.type)} text-xs`}>
                       {alert.type === "overdue" ? "Atrasado" : alert.type === "upcoming" ? "Próximo" : "Urgente"}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-2">{alert.description}</p>
-                  <div className="flex items-center justify-between text-xs">
+                  <p className="text-xs md:text-sm text-muted-foreground mb-2 truncate">{alert.description}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
                     <span className="font-medium">{formatCurrency(alert.amount)}</span>
                     <span className="text-muted-foreground">Vencimento: {formatDate(alert.date)}</span>
                   </div>

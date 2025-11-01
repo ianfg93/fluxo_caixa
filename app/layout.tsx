@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: "Sistema de Fluxo de Caixa",
   description: "Sistema completo de gestão de fluxo de caixa empresarial",
   generator: "v0.app",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
 }
 
 export default function RootLayout({

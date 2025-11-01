@@ -27,8 +27,8 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
-      <main className="flex-1 ml-64 overflow-auto">
-        <div className="p-6 md:p-8">{children}</div>
+      <main className="flex-1 lg:ml-64 overflow-auto">
+        <div className="p-4 pt-16 lg:pt-6 md:p-8">{children}</div>
       </main>
     </div>
   )
