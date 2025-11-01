@@ -56,7 +56,13 @@ async function runMigrations() {
       // "015_cleanup_accounts_payable.sql",
       // "016_add_open_order_service.sql",
       // "017_create_customers_table.sql",
-     "018_add_cod_barra_products.sql"
+      // "018_add_cod_barra_products.sql",
+      //  "019_create_nfe_tables.sql"
+      // "020_fix_nfe_trigger.sql",
+      // "021_fix_stock_movement_type.sql",
+      // "022_disable_nfe_triggers.sql",
+      // "023_add_payment_category_to_nfe.sql",
+      "023_add_payment_category_to_nfe.sql"
     ]
 
     let executedCount = 0
@@ -109,22 +115,6 @@ async function runMigrations() {
     console.log(`📊 Resumo:`)
     console.log(`  ✅ Executadas: ${executedCount}`)
     console.log(`  ⏭️  Puladas: ${skippedCount}`)
-    
-    // Verificar estrutura final
-    console.log("\n📋 Tabelas criadas:")
-    const tables = await client.query(`
-      SELECT 
-        table_name,
-        (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = t.table_name) as column_count
-      FROM information_schema.tables t
-      WHERE table_schema = 'public' 
-      AND table_type = 'BASE TABLE'
-      ORDER BY table_name
-    `)
-    
-    tables.rows.forEach(table => {
-      console.log(`  📋 ${table.table_name} (${table.column_count} colunas)`)
-    })
     
     users.rows.forEach(user => {
       const company = user.company ? ` (${user.company})` : ' (Sistema)'

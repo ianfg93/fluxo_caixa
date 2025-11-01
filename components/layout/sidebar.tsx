@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package, Clock, Menu, X } from "lucide-react"
+import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package, Clock, Menu, X, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useAuth } from "@/hooks/use-auth"
@@ -14,10 +14,11 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["master", "administrator"] },
   { name: "Empresas", href: "/companies", icon: Building2, roles: ["master"] },
   { name: "Estoque", href: "/products", icon: Package, roles: ["master", "administrator"] },
+  { name: "NF-e Entrada", href: "/nfe", icon: FileText, roles: ["master", "administrator"] },
   { name: "Entradas", href: "/cash-flow/entries", icon: TrendingUp, roles: ["administrator", "operational"] },
   { name: "Saídas", href: "/cash-flow/exits", icon: TrendingDown, roles: ["administrator", "operational"] },
   { name: "Contas a Pagar", href: "/accounts-payable", icon: CreditCard, roles: ["administrator"] },
-  { name: "Contas a Receber", href: "/accounts-receivable", icon: Clock, roles: ["master", "administrator", "operational"] }, // ✅ NOVO
+  { name: "Contas a Receber", href: "/accounts-receivable", icon: Clock, roles: ["master", "administrator", "operational"] },
   { name: "Usuários", href: "/users", icon: Users, roles: ["master", "administrator"] },
   { name: "Fornecedores", href: "/vendors", icon: Truck, roles: ["master", "administrator"] },
   { name: "Configurações", href: "/settings", icon: Settings, roles: ["master", "administrator", "operational"] },

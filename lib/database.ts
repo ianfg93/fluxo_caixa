@@ -44,12 +44,6 @@ export async function getDbPool() {
   if (!pool) {
     const config = getDbConfig()
     
-    // LOG CRÍTICO - ver qual banco está usando
-    console.log('===========================================')
-    console.log('CRIANDO POOL DE CONEXÃO')
-    console.log('Config:', JSON.stringify(config, null, 2))
-    console.log('===========================================')
-    
     pool = new Pool(config)
     
     pool.on('error', (err) => {

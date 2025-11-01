@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e:*)",
+      "Bash(node scripts/run-migrations.js:*)",
+      "Bash(node scripts/check-data.js:*)",
+      "Bash(cat:*)",
+      "Bash(app/nfe/[id]/edit/page.tsx)",
+      "Bash(psql:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

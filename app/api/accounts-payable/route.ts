@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     if (whereConditions.length > 0) {
       finalQuery += ` WHERE ${whereConditions.join(' AND ')}`
     }
-    finalQuery += ` ORDER BY ap.due_date ASC, ap.created_at DESC`
+    finalQuery += ` ORDER BY ap.created_at DESC, ap.due_date ASC`
 
     const result = await query(finalQuery, queryParams)
 

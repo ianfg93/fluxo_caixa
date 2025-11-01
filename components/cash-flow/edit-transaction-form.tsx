@@ -30,11 +30,11 @@ interface EditTransactionFormProps {
 export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTransactionFormProps) {
   const [formData, setFormData] = useState({
     amount: transaction.amount.toString(),
-    category: transaction.category,
+    category: transaction.category || (transaction.type === "entry" ? "vendas" : "compras"),
     date: new Date(transaction.date).toISOString().split("T")[0],
     notes: transaction.notes || "",
     additionalNotes: "",
-    paymentMethod: transaction.paymentMethod || ("" as PaymentMethod | ""),
+    paymentMethod: transaction.paymentMethod || "dinheiro",
   })
   
   const [products, setProducts] = useState<TransactionProduct[]>([])

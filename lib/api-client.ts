@@ -64,11 +64,12 @@ export class ApiClient {
     }
   }
 
-  static async delete(url: string): Promise<Response> {
+  static async delete(url: string, data?: any): Promise<Response> {
     try {
       return await fetch(url, {
         method: 'DELETE',
         headers: this.getAuthHeaders(),
+        body: data ? JSON.stringify(data) : undefined,
       })
     } catch (error) {
       console.error('API DELETE error:', error)
