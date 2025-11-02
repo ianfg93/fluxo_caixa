@@ -15,20 +15,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import type { AccountPayable } from "@/lib/accounts-payable"
+import { AccountsPayableService } from "@/lib/accounts-payable"
 
 interface PaymentModalProps {
   account: AccountPayable
-  isOpen: boolean
-  onClose: () => void
-  onConfirm: (paymentData: {
-    paidAmount: number
-    paidDate: Date
-    paymentMethod?: string
-    notes?: string
-  }) => Promise<void>
+  onSuccess: () => void
+  onCancel: () => void
 }
 
-export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentModalProps) {
+export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps) {
   const [formData, setFormData] = useState({
     paidDate: new Date().toISOString().split("T")[0],
     paymentMethod: "",
@@ -50,12 +45,13 @@ export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentMod
     setIsLoading(true)
 
     try {
-      await onConfirm({
+      await AccountsPayableService.markAsPaid(account.id, {
         paidAmount: account.amount,
         paidDate: new Date(formData.paidDate),
         paymentMethod: formData.paymentMethod,
         notes: formData.notes || undefined,
       })
+      onSuccess()
     } catch (error) {
       console.error("Erro ao marcar conta como paga:", error)
       setError("Erro ao processar pagamento. Tente novamente.")
@@ -71,7 +67,7 @@ export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentMod
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={true} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Registro de pagamento</DialogTitle>
@@ -144,7 +140,7 @@ export function PaymentModal({ account, isOpen, onClose, onConfirm }: PaymentMod
           </div>
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading || !formData.paymentMethod}>

@@ -202,29 +202,6 @@ export default function AccountsPayablePage() {
     setPaymentAccount(account)
   }
 
-  const handlePaymentConfirm = async (paymentData: {
-    paidAmount: number
-    paidDate: Date
-    paymentMethod?: string
-    notes?: string
-  }) => {
-    if (!paymentAccount) return
-
-    try {
-      const result = await AccountsPayableService.markAsPaid(
-        paymentAccount.id,
-        paymentData
-      )
-
-      if (result) {
-        handleSuccess()
-      } else {
-        alert("Erro ao marcar conta como paga. Tente novamente.")
-      }
-    } catch (error) {
-      alert("Erro ao processar pagamento. Tente novamente.")
-    }
-  }
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString("pt-BR", {
@@ -628,9 +605,8 @@ export default function AccountsPayablePage() {
       {paymentAccount && (
         <PaymentModal
           account={paymentAccount}
-          isOpen={!!paymentAccount}
-          onClose={() => setPaymentAccount(null)}
-          onConfirm={handlePaymentConfirm}
+          onSuccess={handleSuccess}
+          onCancel={() => setPaymentAccount(null)}
         />
       )}
     </AuthenticatedLayout>
