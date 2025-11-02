@@ -6,19 +6,38 @@ import { CreditCard, TrendingDown, TrendingUp } from "lucide-react"
 import { CardReceivablesService, type CardReceivable } from "@/lib/card-receivables"
 import Link from "next/link"
 
-export function CardReceivablesWidget() {
+type PeriodFilter = "day" | "month" | "quarter" | "year" | "all"
+
+interface CardReceivablesWidgetProps {
+  startDate?: Date
+  endDate?: Date
+}
+
+export function CardReceivablesWidget({ startDate, endDate }: CardReceivablesWidgetProps) {
   const [receivables, setReceivables] = useState<CardReceivable[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadReceivables()
-  }, [])
+  }, [startDate, endDate])
 
   const loadReceivables = async () => {
     try {
       setLoading(true)
       const data = await CardReceivablesService.getCardReceivables()
-      setReceivables(data)
+
+      // Filter by date range if provided
+      let filtered = data
+      if (startDate || endDate) {
+        filtered = data.filter(r => {
+          const settlementDate = new Date(r.settlementDate)
+          const isAfterStart = startDate ? settlementDate >= startDate : true
+          const isBeforeEnd = endDate ? settlementDate <= endDate : true
+          return isAfterStart && isBeforeEnd
+        })
+      }
+
+      setReceivables(filtered)
     } catch (error) {
       console.error("Error loading card receivables:", error)
     } finally {
@@ -90,8 +109,8 @@ export function CardReceivablesWidget() {
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
             Recebíveis de Cartão
           </CardTitle>
@@ -104,125 +123,88 @@ export function CardReceivablesWidget() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Card Principal - Resumo Total */}
-      <Link href="/card-receivables">
-        <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+    <Link href="/card-receivables" className="block">
+      <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
               Recebíveis de Cartão
             </CardTitle>
-            <CardDescription>Valores a receber das operadoras</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm text-muted-foreground">Total a Receber</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalNet)}</p>
+            <CardDescription className="text-xs">Ver detalhes →</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Resumo Principal em Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Total a Receber */}
+            <div className="col-span-2 md:col-span-1 bg-green-50 dark:bg-green-950/20 p-3 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Total a Receber</p>
+              <p className="text-xl font-bold text-green-600">{formatCurrency(summary.totalNet)}</p>
+            </div>
+
+            {/* Hoje */}
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Hoje</p>
+              <p className="text-base font-bold text-foreground">{formatCurrency(todaySummary.totalNet)}</p>
+              <p className="text-xs text-muted-foreground">{todayReceivables.length} transação(ões)</p>
+            </div>
+
+            {/* 7 dias */}
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">7 dias</p>
+              <p className="text-base font-bold text-foreground">{formatCurrency(weekSummary.totalNet)}</p>
+              <p className="text-xs text-muted-foreground">{weekReceivables.length} transação(ões)</p>
+            </div>
+
+            {/* Este mês */}
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Este mês</p>
+              <p className="text-base font-bold text-foreground">{formatCurrency(monthSummary.totalNet)}</p>
+              <p className="text-xs text-muted-foreground">{monthReceivables.length} transação(ões)</p>
+            </div>
+          </div>
+
+          {/* Breakdown por Tipo de Cartão */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t">
+            {/* Débito */}
+            <div className="flex items-center gap-3 p-2">
+              <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-950/30 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="h-5 w-5 text-blue-600" />
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Bruto</p>
-                  <p className="font-semibold">{formatCurrency(summary.totalGross)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Taxas</p>
-                  <p className="font-semibold text-red-600">{formatCurrency(summary.totalFees)}</p>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">Débito</p>
+                <p className="text-sm font-bold text-foreground">{formatCurrency(debitSummary.totalNet)}</p>
+                <p className="text-xs text-muted-foreground">{debitReceivables.length} transações</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </Link>
 
-      {/* Grid de Cards de Período */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Hoje</p>
-            <p className="text-sm text-muted-foreground mb-2">
-              <span className="font-medium">{todayReceivables.length}</span> transação(ões)
-            </p>
-            <p className="text-lg font-bold text-green-600">
-              {formatCurrency(todaySummary.totalNet)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Próximos 7 dias</p>
-            <p className="text-sm text-muted-foreground mb-2">
-              <span className="font-medium">{weekReceivables.length}</span> transação(ões)
-            </p>
-            <p className="text-lg font-bold text-green-600">
-              {formatCurrency(weekSummary.totalNet)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Este mês</p>
-            <p className="text-sm text-muted-foreground mb-2">
-              <span className="font-medium">{monthReceivables.length}</span> transação(ões)
-            </p>
-            <p className="text-lg font-bold text-green-600">
-              {formatCurrency(monthSummary.totalNet)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Breakdown por Tipo de Cartão */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                  <CreditCard className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Débito</p>
-                  <p className="text-xs text-muted-foreground">{debitReceivables.length} transações</p>
-                </div>
+            {/* Crédito */}
+            <div className="flex items-center gap-3 p-2">
+              <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-950/30 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="h-5 w-5 text-purple-600" />
               </div>
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            </div>
-            <p className="text-xl font-bold text-green-600">
-              {formatCurrency(debitSummary.totalNet)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Taxas: {formatCurrency(debitSummary.totalFees)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                  <CreditCard className="h-4 w-4 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Crédito</p>
-                  <p className="text-xs text-muted-foreground">{creditReceivables.length} transações</p>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">Crédito</p>
+                <p className="text-sm font-bold text-foreground">{formatCurrency(creditSummary.totalNet)}</p>
+                <p className="text-xs text-muted-foreground">{creditReceivables.length} transações</p>
               </div>
-              <TrendingUp className="h-4 w-4 text-green-600" />
             </div>
-            <p className="text-xl font-bold text-green-600">
-              {formatCurrency(creditSummary.totalNet)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Taxas: {formatCurrency(creditSummary.totalFees)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+
+            {/* Total de Taxas */}
+            <div className="flex items-center gap-3 p-2">
+              <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center flex-shrink-0">
+                <TrendingDown className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">Taxas Totais</p>
+                <p className="text-sm font-bold text-red-600">{formatCurrency(summary.totalFees)}</p>
+                <p className="text-xs text-muted-foreground">Bruto: {formatCurrency(summary.totalGross)}</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }

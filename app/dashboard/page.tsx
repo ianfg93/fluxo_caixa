@@ -8,8 +8,11 @@ import { Calendar, TrendingUp, TrendingDown } from "lucide-react"
 import { MetricsCards } from "@/components/dashboard/metrics-cards"
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart"
 import { AlertsPanel } from "@/components/dashboard/alerts-panel"
+import { CardReceivablesWidget } from "@/components/dashboard/card-receivables-widget"
+import { CardReceivablesChart } from "@/components/dashboard/card-receivables-chart"
 import { ReportsService } from "@/lib/reports"
 import { CashFlowService } from "@/lib/cash-flow"
+import { CardReceivablesService } from "@/lib/card-receivables"
 import { useAuth } from "@/hooks/use-auth"
 
 type PeriodFilter = "day" | "month" | "quarter" | "year" | "all"
@@ -21,6 +24,7 @@ export default function DashboardPage() {
   const [entryCategories, setEntryCategories] = useState<any[]>([])
   const [exitCategories, setExitCategories] = useState<any[]>([])
   const [recentTransactions, setRecentTransactions] = useState<any[]>([])
+  const [receivablesChartData, setReceivablesChartData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   
   const [availableCompanies, setAvailableCompanies] = useState<any[]>([])
@@ -132,12 +136,13 @@ export default function DashboardPage() {
       const startDate = getStartDate(selectedPeriod)
       const endDate = getEndDate(selectedPeriod)
 
-      const [dashboardMetrics, monthlyReport, entryCategoryData, exitCategoryData, transactions] = await Promise.all([
+      const [dashboardMetrics, monthlyReport, entryCategoryData, exitCategoryData, transactions, receivables] = await Promise.all([
         ReportsService.getDashboardMetrics(companyFilter, startDate, endDate),
         ReportsService.getMonthlyData(companyFilter, startDate, endDate),
         ReportsService.getCategoryBreakdown("entry", companyFilter, startDate, endDate),
         ReportsService.getCategoryBreakdown("exit", companyFilter, startDate, endDate),
         CashFlowService.getTransactions(undefined, companyFilter),
+        CardReceivablesService.getCardReceivables(),
       ])
 
       // Filtrar transações pelo período selecionado
@@ -151,16 +156,61 @@ export default function DashboardPage() {
         })
       }
 
+      // Processar dados de recebíveis para o gráfico
+      const chartData = processReceivablesForChart(receivables, startDate, endDate)
+
       setMetrics(dashboardMetrics)
       setMonthlyData(monthlyReport)
       setEntryCategories(entryCategoryData)
       setExitCategories(exitCategoryData)
       setRecentTransactions(filteredTransactions.slice(0, 5))
+      setReceivablesChartData(chartData)
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  function processReceivablesForChart(receivables: any[], startDate?: Date, endDate?: Date) {
+    // Filtrar por período se fornecido
+    let filtered = receivables
+    if (startDate || endDate) {
+      filtered = receivables.filter(r => {
+        const settlementDate = new Date(r.settlementDate)
+        const isAfterStart = startDate ? settlementDate >= startDate : true
+        const isBeforeEnd = endDate ? settlementDate <= endDate : true
+        return isAfterStart && isBeforeEnd
+      })
+    }
+
+    // Agrupar por data de liquidação
+    const grouped = filtered.reduce((acc: any, r: any) => {
+      const date = new Date(r.settlementDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+
+      if (!acc[date]) {
+        acc[date] = { date, debit: 0, credit: 0, total: 0, fees: 0 }
+      }
+
+      if (r.cardType === 'debito') {
+        acc[date].debit += r.netAmount
+      } else {
+        acc[date].credit += r.netAmount
+      }
+
+      acc[date].total += r.netAmount
+      acc[date].fees += r.grossAmount - r.netAmount
+
+      return acc
+    }, {})
+
+    // Converter para array e ordenar por data
+    return Object.values(grouped).sort((a: any, b: any) => {
+      const [dayA, monthA] = a.date.split('/')
+      const [dayB, monthB] = b.date.split('/')
+      return new Date(2024, parseInt(monthA) - 1, parseInt(dayA)).getTime() -
+             new Date(2024, parseInt(monthB) - 1, parseInt(dayB)).getTime()
+    })
   }
 
   const formatCurrency = (amount: number) => {
@@ -264,6 +314,9 @@ export default function DashboardPage() {
         <>
           <MetricsCards metrics={metrics} period={selectedPeriod} />
 
+          {/* Card Receivables Widget */}
+          <CardReceivablesWidget startDate={getStartDate(selectedPeriod)} endDate={getEndDate(selectedPeriod)} />
+
           <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
             <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="overview" className="text-sm md:text-base">Visão Geral</TabsTrigger>
@@ -272,8 +325,10 @@ export default function DashboardPage() {
             <TabsContent value="overview" className="space-y-4 md:space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                 <CashFlowChart data={monthlyData} />
-                <AlertsPanel />
+                <CardReceivablesChart data={receivablesChartData} />
               </div>
+
+              <AlertsPanel />
 
               <Card>
                 <CardHeader>

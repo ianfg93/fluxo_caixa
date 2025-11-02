@@ -2,9 +2,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Clock, TrendingDown } from "lucide-react"
+import { AlertTriangle, Clock, TrendingDown, ExternalLink } from "lucide-react"
 import { AccountsPayableService } from "@/lib/accounts-payable"
 import { useEffect, useState } from "react"
+import Link from "next/link"
 
 export function AlertsPanel() {
   const [alerts, setAlerts] = useState<any[]>([])
@@ -120,8 +121,16 @@ export function AlertsPanel() {
   return (
     <Card>
       <CardHeader className="p-4 md:p-6">
-        <CardTitle className="text-lg md:text-xl">Alertas e Notificações</CardTitle>
-        <CardDescription className="text-xs md:text-sm">Contas que requerem atenção imediata</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg md:text-xl">Alertas e Notificações</CardTitle>
+            <CardDescription className="text-xs md:text-sm">Contas que requerem atenção imediata</CardDescription>
+          </div>
+          <Link href="/accounts-payable" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">
+            Ver detalhes
+            <ExternalLink className="h-3 w-3" />
+          </Link>
+        </div>
       </CardHeader>
       <CardContent className="p-4 md:p-6 pt-0">
         <div className="space-y-3 md:space-y-4 max-h-[400px] md:max-h-[500px] overflow-y-auto">

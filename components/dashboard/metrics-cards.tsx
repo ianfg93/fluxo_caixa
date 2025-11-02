@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Clock, CreditCard } from "lucide-react"
+import Link from "next/link"
 
 type PeriodFilter = "day" | "month" | "quarter" | "year" | "all"
 
@@ -99,38 +100,44 @@ export function MetricsCards({ metrics, period = "day" }: MetricsCardsProps) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6 md:pb-2">
-          <CardTitle className="text-xs md:text-sm font-medium">Contas Pendentes</CardTitle>
-          <CreditCard className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-        </CardHeader>
-        <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-          <div className="text-xl md:text-2xl font-bold text-yellow-600">{formatCurrency(metrics.pendingPayables)}</div>
-          <p className="text-xs text-muted-foreground mt-1">Aguardando pagamento</p>
-        </CardContent>
-      </Card>
+      <Link href="/accounts-payable" className="block">
+        <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6 md:pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium">Contas Pendentes</CardTitle>
+            <CreditCard className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+            <div className="text-xl md:text-2xl font-bold text-yellow-600">{formatCurrency(metrics.pendingPayables)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Aguardando pagamento →</p>
+          </CardContent>
+        </Card>
+      </Link>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6 md:pb-2">
-          <CardTitle className="text-xs md:text-sm font-medium">Contas em Atraso</CardTitle>
-          <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
-        </CardHeader>
-        <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-          <div className="text-xl md:text-2xl font-bold text-red-600">{formatCurrency(metrics.overduePayables)}</div>
-          <p className="text-xs text-muted-foreground mt-1">Vencidas e não pagas</p>
-        </CardContent>
-      </Card>
+      <Link href="/accounts-payable" className="block">
+        <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6 md:pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium">Contas em Atraso</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+            <div className="text-xl md:text-2xl font-bold text-red-600">{formatCurrency(metrics.overduePayables)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Vencidas e não pagas →</p>
+          </CardContent>
+        </Card>
+      </Link>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6 md:pb-2">
-          <CardTitle className="text-xs md:text-sm font-medium">Próximos 7 Dias</CardTitle>
-          <Clock className="h-4 w-4 text-orange-600 flex-shrink-0" />
-        </CardHeader>
-        <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
-          <div className="text-xl md:text-2xl font-bold text-orange-600">{formatCurrency(metrics.upcomingPayments)}</div>
-          <p className="text-xs text-muted-foreground mt-1">Vencimentos próximos</p>
-        </CardContent>
-      </Card>
+      <Link href="/accounts-payable" className="block">
+        <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6 md:pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium">Próximos 7 Dias</CardTitle>
+            <Clock className="h-4 w-4 text-orange-600 flex-shrink-0" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+            <div className="text-xl md:text-2xl font-bold text-orange-600">{formatCurrency(metrics.upcomingPayments)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Vencimentos próximos →</p>
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   )
 }
