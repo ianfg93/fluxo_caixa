@@ -3,6 +3,8 @@ import { query } from "@/lib/database"
 import { ApiAuthService } from "@/lib/api-auth"
 import bcrypt from 'bcryptjs'
 
+export const dynamic = 'force-dynamic'
+
 function mapUserTypeToRole(userType: string): "basic" | "manager" | "master" {
   switch (userType.toLowerCase()) {
     case 'master':

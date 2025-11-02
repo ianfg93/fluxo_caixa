@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
 import { ApiAuthService } from "@/lib/api-auth"
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/card-receivables/settings - Get card settings
 export async function GET(request: NextRequest) {
   try {

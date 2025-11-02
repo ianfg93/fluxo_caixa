@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
 import { ApiAuthService } from "@/lib/api-auth"
 
+export const dynamic = 'force-dynamic'
+
 // POST - Adicionar item à comanda
 export async function POST(
   request: NextRequest,

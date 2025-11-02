@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
 import { ApiAuthService } from "@/lib/api-auth"
 
+export const dynamic = 'force-dynamic'
+
 // PUT - Atualizar comanda (valor extra e observações)
 export async function PUT(
   request: NextRequest,

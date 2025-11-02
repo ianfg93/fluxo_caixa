@@ -3,6 +3,8 @@ import { query } from "@/lib/database"
 import { ApiAuthService } from "@/lib/api-auth"
 import bcrypt from 'bcryptjs'
 
+export const dynamic = 'force-dynamic'
+
 export async function PUT(request: NextRequest) {
   try {
     const user = await ApiAuthService.authenticateRequest(request)

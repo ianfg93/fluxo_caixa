@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { query } from "@/lib/database"
 import { ApiAuthService } from "@/lib/api-auth"
 
+export const dynamic = 'force-dynamic'
+
 // GET - Buscar todas as comandas abertas
 export async function GET(request: NextRequest) {
   try {
