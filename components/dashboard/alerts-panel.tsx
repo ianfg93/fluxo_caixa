@@ -32,7 +32,7 @@ export function AlertsPanel() {
           ...overdueAccounts.map((account) => ({
             type: "overdue",
             title: "Conta em Atraso",
-            description: `${account.supplierName} - ${account.description}`,
+            description: `${account.vendorName} - ${account.description}`,
             amount: account.amount,
             date: account.dueDate,
             priority: "high",
@@ -40,7 +40,7 @@ export function AlertsPanel() {
           ...upcomingPayments.map((account) => ({
             type: "upcoming",
             title: "Vencimento Próximo",
-            description: `${account.supplierName} - ${account.description}`,
+            description: `${account.vendorName} - ${account.description}`,
             amount: account.amount,
             date: account.dueDate,
             priority: "medium",
@@ -48,7 +48,7 @@ export function AlertsPanel() {
           ...urgentPayments.map((account) => ({
             type: "urgent",
             title: "Pagamento Urgente",
-            description: `${account.supplierName} - ${account.description}`,
+            description: `${account.vendorName} - ${account.description}`,
             amount: account.amount,
             date: account.dueDate,
             priority: "urgent",
@@ -108,7 +108,7 @@ export function AlertsPanel() {
     return (
       <Card>
         <CardHeader className="p-4 md:p-6">
-          <CardTitle className="text-lg md:text-xl">Alertas e Notificações</CardTitle>
+          <CardTitle className="text-lg md:text-xl">Alertas</CardTitle>
           <CardDescription className="text-xs md:text-sm">Contas que requerem atenção imediata</CardDescription>
         </CardHeader>
         <CardContent className="p-4 md:p-6 pt-0">
@@ -123,7 +123,7 @@ export function AlertsPanel() {
       <CardHeader className="p-4 md:p-6">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg md:text-xl">Alertas e Notificações</CardTitle>
+            <CardTitle className="text-lg md:text-xl">Alertas</CardTitle>
             <CardDescription className="text-xs md:text-sm">Contas que requerem atenção imediata</CardDescription>
           </div>
           <Link href="/accounts-payable" className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1">

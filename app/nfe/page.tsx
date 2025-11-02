@@ -123,7 +123,7 @@ export default function NFePage() {
   })
 
   // Calcular totais
-  const totalValue = filteredInvoices.reduce((sum, inv) => sum + inv.totalInvoice, 0)
+  const totalValue = filteredInvoices.reduce((sum, inv) => sum + parseFloat(String(inv.totalInvoice || 0)), 0)
   const totalActive = filteredInvoices.filter((inv) => inv.status === "active").length
   const totalPending = filteredInvoices.filter((inv) => inv.status !== 'cancelled' && inv.paymentStatus === "pending").length
 

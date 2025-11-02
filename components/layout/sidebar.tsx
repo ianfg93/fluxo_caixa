@@ -5,7 +5,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package, Clock, Menu, X, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { Truck } from "lucide-react"
@@ -25,11 +24,21 @@ const navigation = [
   { name: "Configurações", href: "/settings", icon: Settings, roles: ["master", "administrator", "operational"] },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  onCollapsedChange?: (collapsed: boolean) => void
+}
+
+export function Sidebar({ onCollapsedChange }: SidebarProps = {}) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const { authState, logout, hasPermission } = useAuth()
+
+  const handleToggleCollapse = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    onCollapsedChange?.(newState)
+  }
 
   const filteredNavigation = navigation.filter((item) => item.roles.some((role) => hasPermission(role as any)))
 
@@ -79,23 +88,20 @@ export function Sidebar() {
               </div>
             )}
 
-            <div className="flex items-center gap-2">
-              {!isCollapsed && <NotificationBell />}
-
-              {/* Botão de colapsar/expandir - apenas desktop */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden lg:flex h-8 w-8"
-                onClick={() => setIsCollapsed(!isCollapsed)}
-              >
-                {isCollapsed ? (
-                  <ChevronRight className="h-4 w-4" />
-                ) : (
-                  <ChevronLeft className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+            {/* Botão de colapsar/expandir - desktop */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="hidden lg:flex h-9 w-9 shrink-0"
+              onClick={handleToggleCollapse}
+              title={isCollapsed ? "Expandir menu" : "Recolher menu"}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-5 w-5" />
+              ) : (
+                <ChevronLeft className="h-5 w-5" />
+              )}
+            </Button>
           </div>
         </div>
 
