@@ -142,4 +142,9 @@
       min-height: 44px;
     }
   }
+
+  /* Cursor pointer for all clickable elements */
+  button, a, [role="button"], [onclick], label[for] {
+    cursor: pointer;
+  }
 }

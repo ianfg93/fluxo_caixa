@@ -111,7 +111,7 @@ export function NotificationBell() {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 border-b hover:bg-muted/50 ${!notification.read ? "bg-blue-50" : ""}`}
+                  className={`p-3 border-b hover:bg-muted/50 cursor-pointer ${!notification.read ? "bg-blue-50" : ""}`}
                 >
                   <div className="flex items-start gap-3">
                     <span className="text-lg">{getNotificationIcon(notification.type)}</span>
