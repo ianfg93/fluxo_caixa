@@ -184,11 +184,15 @@ export function EditTransactionForm({ transaction, onSuccess, onCancel }: EditTr
         finalNotes = finalNotes ? `${finalNotes}\n\nObservações: ${formData.additionalNotes}` : formData.additionalNotes
       }
 
+      // Criar a data no horário local para evitar problemas de fuso horário
+      const [year, month, day] = formData.date.split('-').map(Number)
+      const localDate = new Date(year, month - 1, day, 12, 0, 0)
+
       const updateData: any = {
         description: formData.category.charAt(0).toUpperCase() + formData.category.slice(1),
         amount: Number.parseFloat(formData.amount),
         category: formData.category as TransactionCategory,
-        date: new Date(formData.date),
+        date: localDate,
         notes: finalNotes || undefined,
         paymentMethod: formData.paymentMethod || undefined,
       }

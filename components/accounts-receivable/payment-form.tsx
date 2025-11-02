@@ -69,12 +69,16 @@ export function PaymentForm({ customer, onSuccess, onCancel }: PaymentFormProps)
         notes += `\n\nObservações: ${formData.notes}`
       }
 
+      // Criar a data no horário local para evitar problemas de fuso horário
+      const [year, month, day] = formData.date.split('-').map(Number)
+      const localDate = new Date(year, month - 1, day, 12, 0, 0)
+
       const transactionData: any = {
         type: "entry",
         description: `Pagamento - ${customer.name}`,
         amount: amount,
         category: "vendas",
-        date: new Date(formData.date),
+        date: localDate,
         paymentMethod: formData.paymentMethod || undefined,
         customerId: customer.id,
         amountReceived: amount, // Pagamento recebe o valor total

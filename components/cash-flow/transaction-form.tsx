@@ -36,12 +36,16 @@ export function TransactionForm({ type, onSuccess, onCancel }: TransactionFormPr
     setError(null)
 
     try {
+      // Criar a data no horário local para evitar problemas de fuso horário
+      const [year, month, day] = formData.date.split('-').map(Number)
+      const localDate = new Date(year, month - 1, day, 12, 0, 0)
+
       const result = await CashFlowService.addTransaction({
         type,
         description: formData.category.charAt(0).toUpperCase() + formData.category.slice(1),
         amount: Number.parseFloat(formData.amount),
         category: formData.category,
-        date: new Date(formData.date),
+        date: localDate,
         notes: formData.notes || undefined,
         paymentMethod: formData.paymentMethod || undefined,
       })
