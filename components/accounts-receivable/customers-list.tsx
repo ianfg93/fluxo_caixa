@@ -20,6 +20,7 @@ export function CustomersList({ onSelectCustomer }: CustomersListProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [filterStatus, setFilterStatus] = useState<"all" | "debtors" | "paid">("all")
 
   const loadCustomers = async () => {
     try {
@@ -39,20 +40,28 @@ export function CustomersList({ onSelectCustomer }: CustomersListProps) {
   }, [])
 
   useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredCustomers(customers)
-      return
+    let filtered = customers
+
+    // Filtro por status de dívida
+    if (filterStatus === "debtors") {
+      filtered = filtered.filter(customer => customer.balance && customer.balance > 0)
+    } else if (filterStatus === "paid") {
+      filtered = filtered.filter(customer => customer.balance === 0 && customer.totalDebt && customer.totalDebt > 0)
     }
 
-    const searchLower = searchTerm.toLowerCase()
-    const filtered = customers.filter(
-      (customer) =>
-        customer.name.toLowerCase().includes(searchLower) ||
-        customer.cpfCnpj?.toLowerCase().includes(searchLower) ||
-        customer.phone?.toLowerCase().includes(searchLower)
-    )
+    // Filtro por termo de busca
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(
+        (customer) =>
+          customer.name.toLowerCase().includes(searchLower) ||
+          customer.cpfCnpj?.toLowerCase().includes(searchLower) ||
+          customer.phone?.toLowerCase().includes(searchLower)
+      )
+    }
+
     setFilteredCustomers(filtered)
-  }, [searchTerm, customers])
+  }, [searchTerm, customers, filterStatus])
 
   const handleSuccess = () => {
     loadCustomers()
@@ -66,31 +75,124 @@ export function CustomersList({ onSelectCustomer }: CustomersListProps) {
     })
   }
 
+  // Calcular estatísticas
+  const totalCustomers = customers.length
+  const debtorsCount = customers.filter(c => c.balance && c.balance > 0).length
+  const paidCount = customers.filter(c => c.balance === 0 && c.totalDebt && c.totalDebt > 0).length
+  const totalDebt = customers.reduce((sum, c) => sum + (c.balance || 0), 0)
+
   if (showForm) {
     return <CustomerForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1 max-w-md">
-          <Label htmlFor="search" className="sr-only">Buscar Cliente</Label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="search"
-              type="text"
-              placeholder="Buscar por nome, CPF/CNPJ ou telefone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      {/* Indicadores de estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total de Clientes</p>
+                <p className="text-3xl font-bold mt-2">{totalCustomers}</p>
+              </div>
+              <Users className="h-10 w-10 text-blue-600 opacity-75" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Devedores</p>
+                <p className="text-3xl font-bold mt-2 text-red-600">{debtorsCount}</p>
+              </div>
+              <AlertCircle className="h-10 w-10 text-red-600 opacity-75" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Quitados</p>
+                <p className="text-3xl font-bold mt-2 text-green-600">{paidCount}</p>
+              </div>
+              <DollarSign className="h-10 w-10 text-green-600 opacity-75" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total a Receber</p>
+                <p className="text-2xl font-bold mt-2 text-orange-600">{formatCurrency(totalDebt)}</p>
+              </div>
+              <DollarSign className="h-10 w-10 text-orange-600 opacity-75" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant={filterStatus === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("all")}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Todos
+            </Button>
+            <Button
+              variant={filterStatus === "debtors" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("debtors")}
+            >
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Devedores
+            </Button>
+            <Button
+              variant={filterStatus === "paid" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus("paid")}
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Quitados
+            </Button>
           </div>
+          {!loading && (
+            <p className="text-sm text-muted-foreground">
+              {filteredCustomers.length} {filteredCustomers.length === 1 ? 'cliente' : 'clientes'}
+            </p>
+          )}
         </div>
-        <Button onClick={() => setShowForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Cliente
-        </Button>
+
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 max-w-md">
+            <Label htmlFor="search" className="sr-only">Buscar Cliente</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="search"
+                type="text"
+                placeholder="Buscar por nome, CPF/CNPJ ou telefone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Cliente
+          </Button>
+        </div>
       </div>
 
       {loading ? (

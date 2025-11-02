@@ -4,13 +4,13 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, CreditCard, CheckCircle } from "lucide-react"
+import { Plus, Edit, Trash2, CreditCard, CheckCircle, Filter } from "lucide-react"
 import { AccountsPayableService, type AccountPayable } from "@/lib/accounts-payable"
 import { AccountForm } from "@/components/accounts-payable/account-form"
 import { PaymentModal } from "@/components/accounts-payable/payment-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout"
-import { DateFilter, type DateFilter as DateFilterType } from "@/components/cash-flow/date-filter"
+import { type DateFilter as DateFilterType } from "@/components/cash-flow/date-filter"
 
 export default function AccountsPayablePage() {
   const [accounts, setAccounts] = useState<AccountPayable[]>([])
@@ -20,6 +20,11 @@ export default function AccountsPayablePage() {
   const [paymentAccount, setPaymentAccount] = useState<AccountPayable | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "all" })
+  const [periodFilter, setPeriodFilter] = useState<string>("all")
+  const [customStartDate, setCustomStartDate] = useState<string>("")
+  const [customEndDate, setCustomEndDate] = useState<string>("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const { authState } = useAuth()
 
   const loadAccounts = async () => {
@@ -28,30 +33,104 @@ export default function AccountsPayablePage() {
       const data = await AccountsPayableService.getAccountsPayable()
       setAccounts(data)
     } catch (error) {
-      
+
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handlePeriodChange = (period: string) => {
+    setPeriodFilter(period)
+
+    const today = new Date()
+    let startDate: string | undefined
+    let endDate: string | undefined
+
+    const formatDate = (date: Date): string => {
+      return date.toISOString().split('T')[0]
+    }
+
+    switch (period) {
+      case "today":
+        startDate = formatDate(today)
+        endDate = formatDate(today)
+        break
+
+      case "week":
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - today.getDay())
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        startDate = formatDate(weekStart)
+        endDate = formatDate(weekEnd)
+        break
+
+      case "month":
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        startDate = formatDate(monthStart)
+        endDate = formatDate(monthEnd)
+        break
+
+      case "all":
+        startDate = undefined
+        endDate = undefined
+        break
+
+      case "custom":
+        return
+    }
+
+    setDateFilter({
+      period: period as DateFilterType["period"],
+      startDate,
+      endDate
+    })
+  }
+
+  const handleCustomDateApply = () => {
+    if (customStartDate && customEndDate) {
+      setDateFilter({
+        period: "custom",
+        startDate: customStartDate,
+        endDate: customEndDate
+      })
     }
   }
 
   useEffect(() => {
     let filtered = accounts
 
+    // Filtro de data
     if (dateFilter.startDate && dateFilter.endDate) {
       const startDate = new Date(dateFilter.startDate)
       const endDate = new Date(dateFilter.endDate)
-      
+
       startDate.setHours(0, 0, 0, 0)
       endDate.setHours(23, 59, 59, 999)
 
-      filtered = accounts.filter(account => {
+      filtered = filtered.filter(account => {
         const dueDate = new Date(account.dueDate)
         return dueDate >= startDate && dueDate <= endDate
       })
     }
 
+    // Filtro de status
+    if (statusFilter !== "all") {
+      if (statusFilter === "pending") {
+        filtered = filtered.filter(account => account.status === "pending" || account.status === "overdue")
+      } else if (statusFilter === "paid") {
+        filtered = filtered.filter(account => account.status === "paid" || account.status === "partially_paid")
+      }
+    }
+
+    // Filtro de prioridade
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter(account => account.priority === priorityFilter)
+    }
+
     setFilteredAccounts(filtered)
-  }, [accounts, dateFilter])
+  }, [accounts, dateFilter, statusFilter, priorityFilter])
 
   useEffect(() => {
     loadAccounts()
@@ -222,6 +301,27 @@ export default function AccountsPayablePage() {
     return filteredAccounts.length
   }
 
+  const getPriorityIndicators = () => {
+    const indicators = {
+      low: { count: 0, amount: 0 },
+      medium: { count: 0, amount: 0 },
+      high: { count: 0, amount: 0 },
+      urgent: { count: 0, amount: 0 },
+    }
+
+    filteredAccounts.forEach(account => {
+      if (account.status !== "paid" && account.status !== "cancelled") {
+        const priority = account.priority as keyof typeof indicators
+        if (indicators[priority]) {
+          indicators[priority].count++
+          indicators[priority].amount += account.amount
+        }
+      }
+    })
+
+    return indicators
+  }
+
   if (!canView()) {
     return (
       <AuthenticatedLayout>
@@ -275,31 +375,143 @@ export default function AccountsPayablePage() {
           </Button>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 lg:flex-[2]">
-            <DateFilter 
-              onFilterChange={setDateFilter}
-              currentFilter={dateFilter}
-            />
-          </div>
-
-          {getAccountCount() > 0 && (
-            <div className="lg:flex-[1]">
-              <Card className="min-h-[140px]">
-                <CardContent className="p-4 h-full flex flex-col justify-center">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-1">
-                      <span className="font-medium">{getAccountCount()}</span> conta(s) a pagar
-                    </p>
-                    <p className="text-xs text-muted-foreground mb-2">Total do período</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {formatCurrency(getTotalAmount())}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold text-sm">Filtros:</span>
+              </div>
+              <select
+                className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+                value={periodFilter}
+                onChange={(e) => handlePeriodChange(e.target.value)}
+              >
+                <option value="all">Todos Períodos</option>
+                <option value="today">Hoje</option>
+                <option value="week">Esta Semana</option>
+                <option value="month">Este Mês</option>
+                <option value="custom">Personalizado</option>
+              </select>
+              {periodFilter === "custom" && (
+                <>
+                  <input
+                    type="date"
+                    className="px-3 py-1.5 border rounded-md text-sm"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    placeholder="Data inicial"
+                  />
+                  <input
+                    type="date"
+                    className="px-3 py-1.5 border rounded-md text-sm"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    placeholder="Data final"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleCustomDateApply}
+                    disabled={!customStartDate || !customEndDate}
+                  >
+                    Aplicar
+                  </Button>
+                </>
+              )}
+              <select
+                className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">Todos Status</option>
+                <option value="pending">Pendentes</option>
+                <option value="paid">Pagos</option>
+              </select>
+              <select
+                className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+              >
+                <option value="all">Todas Prioridades</option>
+                <option value="urgent">Urgente</option>
+                <option value="high">Alta</option>
+                <option value="medium">Média</option>
+                <option value="low">Baixa</option>
+              </select>
             </div>
-          )}
+          </CardContent>
+        </Card>
+
+        <div>
+          <h3 className="font-semibold text-sm mb-3 text-muted-foreground">Indicadores</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1">Total do período</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  <span className="font-medium">{getAccountCount()}</span> conta(s) a pagar
+                </p>
+                <p className="text-xl font-bold text-red-600">
+                  {formatCurrency(getTotalAmount())}
+                </p>
+              </CardContent>
+            </Card>
+            {(() => {
+              const indicators = getPriorityIndicators()
+              return (
+                <>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge className="bg-purple-100 text-purple-800 text-xs">Urgente</Badge>
+                        <span className="text-xs font-medium">{indicators.urgent.count}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">Pendentes</p>
+                      <p className="text-lg font-bold text-purple-600">
+                        {formatCurrency(indicators.urgent.amount)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge className="bg-red-100 text-red-800 text-xs">Alta</Badge>
+                        <span className="text-xs font-medium">{indicators.high.count}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">Pendentes</p>
+                      <p className="text-lg font-bold text-red-600">
+                        {formatCurrency(indicators.high.amount)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge className="bg-orange-100 text-orange-800 text-xs">Média</Badge>
+                        <span className="text-xs font-medium">{indicators.medium.count}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">Pendentes</p>
+                      <p className="text-lg font-bold text-orange-600">
+                        {formatCurrency(indicators.medium.amount)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge className="bg-blue-100 text-blue-800 text-xs">Baixa</Badge>
+                        <span className="text-xs font-medium">{indicators.low.count}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">Pendentes</p>
+                      <p className="text-lg font-bold text-blue-600">
+                        {formatCurrency(indicators.low.amount)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
+              )
+            })()}
+          </div>
         </div>
 
         {loading ? (

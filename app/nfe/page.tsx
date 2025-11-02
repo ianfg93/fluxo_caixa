@@ -145,68 +145,82 @@ export default function NFePage() {
           </Button>
         </div>
 
-        {/* Cards de resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Notas Ativas</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalActive}</div>
-              <p className="text-xs text-muted-foreground mt-1">NF-e processadas</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pagamentos Pendentes</CardTitle>
-              <TrendingDown className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalPending}</div>
-              <p className="text-xs text-muted-foreground mt-1">Aguardando pagamento</p>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Filtros */}
         <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
-                <Input
-                  placeholder="Buscar por número, fornecedor ou CNPJ..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
-                />
+          <CardContent className="p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="font-semibold text-sm">Filtros:</span>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="active">Ativa</SelectItem>
-                  <SelectItem value="cancelled">Cancelada</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pagamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os pagamentos</SelectItem>
-                  <SelectItem value="pending">Pendente</SelectItem>
-                  <SelectItem value="paid">Pago</SelectItem>
-                  <SelectItem value="partially_paid">Parcialmente Pago</SelectItem>
-                  <SelectItem value="overdue">Vencido</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                placeholder="Buscar por número, fornecedor ou CNPJ..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 min-w-[200px] h-8 text-sm"
+              />
+              <select
+                className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">Todos Status</option>
+                <option value="active">Ativa</option>
+                <option value="cancelled">Cancelada</option>
+              </select>
+              <select
+                className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value)}
+              >
+                <option value="all">Todos Pagamentos</option>
+                <option value="pending">Pendente</option>
+                <option value="paid">Pago</option>
+                <option value="partially_paid">Parcialmente Pago</option>
+                <option value="overdue">Vencido</option>
+              </select>
             </div>
           </CardContent>
         </Card>
+
+        {/* Indicadores */}
+        <div>
+          <h3 className="font-semibold text-sm mb-3 text-muted-foreground">Indicadores</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-muted-foreground">Notas Ativas</p>
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                </div>
+                <p className="text-2xl font-bold">{totalActive}</p>
+                <p className="text-xs text-muted-foreground mt-1">NF-e processadas</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-muted-foreground">Pagamentos Pendentes</p>
+                  <TrendingDown className="h-4 w-4 text-orange-600" />
+                </div>
+                <p className="text-2xl font-bold">{totalPending}</p>
+                <p className="text-xs text-muted-foreground mt-1">Aguardando pagamento</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-muted-foreground">Valor Total</p>
+                  <Package className="h-4 w-4 text-blue-600" />
+                </div>
+                <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Notas filtradas</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* Lista de NF-e */}
         {loading ? (

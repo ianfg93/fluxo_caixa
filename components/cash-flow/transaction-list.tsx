@@ -4,12 +4,12 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, TrendingUp, TrendingDown, CreditCard } from "lucide-react"
+import { Plus, Edit, Trash2, TrendingUp, TrendingDown, CreditCard, Filter } from "lucide-react"
 import { CashFlowService, type CashFlowTransaction, type TransactionType } from "@/lib/cash-flow"
 import { TransactionForm } from "./transaction-form"
 import { EntryForm } from "./entry-form"
 import { EditTransactionForm } from "./edit-transaction-form"
-import { DateFilter, type DateFilter as DateFilterType } from "./date-filter"
+import { type DateFilter as DateFilterType } from "./date-filter"
 import { OpenOrder } from "@/lib/open-orders"
 import { useAuth } from "@/hooks/use-auth"
 import { OpenOrdersManager } from "./open-orders-manager"
@@ -26,6 +26,10 @@ export function TransactionList({ type }: TransactionListProps) {
   const [selectedOrder, setSelectedOrder] = useState<OpenOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "all" })
+  const [periodFilter, setPeriodFilter] = useState<string>("all")
+  const [customStartDate, setCustomStartDate] = useState<string>("")
+  const [customEndDate, setCustomEndDate] = useState<string>("")
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const { authState } = useAuth()
 
   const loadTransactions = async () => {
@@ -38,6 +42,75 @@ export function TransactionList({ type }: TransactionListProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handlePeriodChange = (period: string) => {
+    setPeriodFilter(period)
+
+    const today = new Date()
+    let startDate: string | undefined
+    let endDate: string | undefined
+
+    const formatDate = (date: Date): string => {
+      return date.toISOString().split('T')[0]
+    }
+
+    switch (period) {
+      case "today":
+        startDate = formatDate(today)
+        endDate = formatDate(today)
+        break
+
+      case "week":
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - today.getDay())
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        startDate = formatDate(weekStart)
+        endDate = formatDate(weekEnd)
+        break
+
+      case "month":
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        startDate = formatDate(monthStart)
+        endDate = formatDate(monthEnd)
+        break
+
+      case "all":
+        startDate = undefined
+        endDate = undefined
+        break
+
+      case "custom":
+        return
+    }
+
+    setDateFilter({
+      period: period as DateFilterType["period"],
+      startDate,
+      endDate,
+      paymentMethod: paymentMethodFilter !== "all" ? paymentMethodFilter as any : undefined
+    })
+  }
+
+  const handleCustomDateApply = () => {
+    if (customStartDate && customEndDate) {
+      setDateFilter({
+        period: "custom",
+        startDate: customStartDate,
+        endDate: customEndDate,
+        paymentMethod: paymentMethodFilter !== "all" ? paymentMethodFilter as any : undefined
+      })
+    }
+  }
+
+  const handlePaymentMethodChange = (method: string) => {
+    setPaymentMethodFilter(method)
+    setDateFilter({
+      ...dateFilter,
+      paymentMethod: method !== "all" ? method as any : undefined
+    })
   }
 
   useEffect(() => {
@@ -241,31 +314,82 @@ export function TransactionList({ type }: TransactionListProps) {
         <OpenOrdersManager onSelectOrder={handleSelectOrder} />
       )}
 
-      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 lg:items-stretch">
-        <div className="flex-1 lg:flex-[2]">
-          <DateFilter
-            onFilterChange={setDateFilter}
-            currentFilter={dateFilter}
-          />
-        </div>
-
-        {getTransactionCount() > 0 && (
-          <div className="lg:flex-[1]">
-            <Card className="min-h-[100px] md:min-h-[140px]">
-              <CardContent className="p-3 md:p-4 h-full flex flex-col justify-center">
-                <div className="text-center">
-                  <p className="text-xs md:text-sm text-muted-foreground mb-1">
-                    <span className="font-medium">{getTransactionCount()}</span> {type === "entry" ? "entrada(s)" : "saída(s)"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-2">Total do período</p>
-                  <p className={`text-xl md:text-2xl font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
-                    {type === "entry" ? "+" : "-"} {formatCurrency(getTotalAmount())}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+      <Card>
+        <CardContent className="p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="font-semibold text-sm">Filtros:</span>
+            </div>
+            <select
+              className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+              value={periodFilter}
+              onChange={(e) => handlePeriodChange(e.target.value)}
+            >
+              <option value="all">Todos Períodos</option>
+              <option value="today">Hoje</option>
+              <option value="week">Esta Semana</option>
+              <option value="month">Este Mês</option>
+              <option value="custom">Personalizado</option>
+            </select>
+            {periodFilter === "custom" && (
+              <>
+                <input
+                  type="date"
+                  className="px-3 py-1.5 border rounded-md text-sm"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  placeholder="Data inicial"
+                />
+                <input
+                  type="date"
+                  className="px-3 py-1.5 border rounded-md text-sm"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  placeholder="Data final"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleCustomDateApply}
+                  disabled={!customStartDate || !customEndDate}
+                >
+                  Aplicar
+                </Button>
+              </>
+            )}
+            <select
+              className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+              value={paymentMethodFilter}
+              onChange={(e) => handlePaymentMethodChange(e.target.value)}
+            >
+              <option value="all">Todas Formas</option>
+              {CashFlowService.getPaymentMethodOptions().map((method) => (
+                <option key={method.value} value={method.value}>
+                  {method.label}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
+        </CardContent>
+      </Card>
+
+      <div>
+        <h3 className="font-semibold text-sm mb-3 text-muted-foreground">Indicadores</h3>
+        <div className="grid grid-cols-1 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-1">Total do período</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  <span className="font-medium">{getTransactionCount()}</span> {type === "entry" ? "entrada(s)" : "saída(s)"}
+                </p>
+                <p className={`text-xl font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
+                  {type === "entry" ? "+" : "-"} {formatCurrency(getTotalAmount())}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {loading ? (
