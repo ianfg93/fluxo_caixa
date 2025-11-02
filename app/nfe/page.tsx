@@ -125,7 +125,7 @@ export default function NFePage() {
   // Calcular totais
   const totalValue = filteredInvoices.reduce((sum, inv) => sum + inv.totalInvoice, 0)
   const totalActive = filteredInvoices.filter((inv) => inv.status === "active").length
-  const totalPending = filteredInvoices.filter((inv) => inv.paymentStatus === "pending").length
+  const totalPending = filteredInvoices.filter((inv) => inv.status !== 'cancelled' && inv.paymentStatus === "pending").length
 
   return (
     <AuthenticatedLayout>
@@ -243,7 +243,7 @@ export default function NFePage() {
                           NF-e {invoice.nfeNumber}/{invoice.nfeSeries}
                         </h3>
                         {getStatusBadge(invoice.status)}
-                        {getPaymentStatusBadge(invoice.paymentStatus)}
+                        {invoice.status !== 'cancelled' && getPaymentStatusBadge(invoice.paymentStatus)}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
                         <div>
@@ -270,26 +270,28 @@ export default function NFePage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-4 mt-3 text-xs">
-                        {invoice.stockUpdated && (
-                          <div className="flex items-center gap-1 text-green-600">
-                            <Package className="h-3 w-3" />
-                            <span>Estoque atualizado</span>
-                          </div>
-                        )}
-                        {invoice.accountsPayableCreated && (
-                          <div className="flex items-center gap-1 text-blue-600">
-                            <FileText className="h-3 w-3" />
-                            <span>Contas a pagar geradas</span>
-                          </div>
-                        )}
-                        {invoice.paymentStatus === 'paid' && invoice.stockUpdated && (
-                          <div className="flex items-center gap-1 text-purple-600">
-                            <TrendingDown className="h-3 w-3" />
-                            <span>Saída registrada</span>
-                          </div>
-                        )}
-                      </div>
+                      {invoice.status !== 'cancelled' && (
+                        <div className="flex gap-4 mt-3 text-xs">
+                          {invoice.stockUpdated && (
+                            <div className="flex items-center gap-1 text-green-600">
+                              <Package className="h-3 w-3" />
+                              <span>Estoque atualizado</span>
+                            </div>
+                          )}
+                          {invoice.accountsPayableCreated && (
+                            <div className="flex items-center gap-1 text-blue-600">
+                              <FileText className="h-3 w-3" />
+                              <span>Contas a pagar geradas</span>
+                            </div>
+                          )}
+                          {invoice.paymentStatus === 'paid' && invoice.stockUpdated && (
+                            <div className="flex items-center gap-1 text-purple-600">
+                              <TrendingDown className="h-3 w-3" />
+                              <span>Saída registrada</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button

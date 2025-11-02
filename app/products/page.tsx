@@ -670,22 +670,13 @@ export default function ProductsPage() {
                           >
                             <PackagePlus className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
+                          <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => handleEdit(product)}
                             title="Editar produto"
                           >
                             <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDelete(product)}
-                            className="hover:bg-red-50 hover:text-red-600"
-                            title="Excluir produto"
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>

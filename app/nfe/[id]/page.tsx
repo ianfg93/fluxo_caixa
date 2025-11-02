@@ -235,26 +235,14 @@ export default function NFEDetailPage({ params }: { params: { id: string } }) {
                   NF-e {invoice.nfeNumber}/{invoice.nfeSeries}
                 </h1>
                 {getStatusBadge(invoice.status)}
-                {getPaymentStatusBadge(invoice.paymentStatus)}
+                {invoice.status !== 'cancelled' && getPaymentStatusBadge(invoice.paymentStatus)}
               </div>
               <p className="text-muted-foreground mt-1">Cadastrada em {formatDateTime(invoice.createdAt)}</p>
             </div>
           </div>
 
-          {invoice.status === "active" && authState.user?.role !== "viewer" && (
+          {invoice.status === "active" && (
             <div className="flex gap-2">
-              {!invoice.stockUpdated && !invoice.accountsPayableCreated && (
-                <>
-                  <Button variant="outline" onClick={() => router.push(`/nfe/${invoice.id}/edit`)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Editar
-                  </Button>
-                  <Button onClick={handleProcess} disabled={processing}>
-                    <Package className="mr-2 h-4 w-4" />
-                    {processing ? "Processando..." : "Processar"}
-                  </Button>
-                </>
-              )}
               <Button variant="destructive" onClick={() => setShowCancelDialog(true)}>
                 <Ban className="mr-2 h-4 w-4" />
                 Cancelar NF-e
@@ -362,40 +350,42 @@ export default function NFEDetailPage({ params }: { params: { id: string } }) {
               </CardContent>
             </Card>
 
-            {/* Status de Processamento */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Status de Processamento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Package className={invoice.stockUpdated ? "h-5 w-5 text-green-600" : "h-5 w-5 text-muted-foreground"} />
-                  <div>
-                    <p className="font-medium">
-                      {invoice.stockUpdated ? "Estoque atualizado" : "Estoque não atualizado"}
-                    </p>
-                    {invoice.stockUpdatedAt && (
-                      <p className="text-xs text-muted-foreground">
-                        Processado em {formatDateTime(invoice.stockUpdatedAt)}
+            {/* Status de Processamento - Oculto quando cancelada */}
+            {invoice.status !== 'cancelled' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Status de Processamento</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Package className={invoice.stockUpdated ? "h-5 w-5 text-green-600" : "h-5 w-5 text-muted-foreground"} />
+                    <div>
+                      <p className="font-medium">
+                        {invoice.stockUpdated ? "Estoque atualizado" : "Estoque não atualizado"}
                       </p>
-                    )}
+                      {invoice.stockUpdatedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Processado em {formatDateTime(invoice.stockUpdatedAt)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <DollarSign
-                    className={invoice.accountsPayableCreated ? "h-5 w-5 text-blue-600" : "h-5 w-5 text-muted-foreground"}
-                  />
-                  <div>
-                    <p className="font-medium">
-                      {invoice.accountsPayableCreated ? "Contas a pagar criadas" : "Sem contas a pagar"}
-                    </p>
-                    {invoice.paymentStatus === "paid" && (
-                      <p className="text-xs text-muted-foreground">Pagamento à vista registrado no fluxo de caixa</p>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <DollarSign
+                      className={invoice.accountsPayableCreated ? "h-5 w-5 text-blue-600" : "h-5 w-5 text-muted-foreground"}
+                    />
+                    <div>
+                      <p className="font-medium">
+                        {invoice.accountsPayableCreated ? "Contas a pagar criadas" : "Sem contas a pagar"}
+                      </p>
+                      {invoice.paymentStatus === "paid" && (
+                        <p className="text-xs text-muted-foreground">Pagamento à vista registrado no fluxo de caixa</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Cancelamento */}
             {invoice.status === "cancelled" && (
@@ -501,42 +491,44 @@ export default function NFEDetailPage({ params }: { params: { id: string } }) {
               </CardContent>
             </Card>
 
-            {/* Pagamento */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Pagamento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div>
-                  <Label className="text-muted-foreground">Status</Label>
-                  <div className="mt-1">{getPaymentStatusBadge(invoice.paymentStatus)}</div>
-                </div>
-                {invoice.paymentMethod && (
+            {/* Pagamento - Oculto quando cancelada */}
+            {invoice.status !== 'cancelled' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pagamento</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
                   <div>
-                    <Label className="text-muted-foreground">Método</Label>
-                    <p>{invoice.paymentMethod}</p>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <div className="mt-1">{getPaymentStatusBadge(invoice.paymentStatus)}</div>
                   </div>
-                )}
-                {invoice.installments > 1 && (
-                  <div>
-                    <Label className="text-muted-foreground">Parcelas</Label>
-                    <p>{invoice.installments}x</p>
-                  </div>
-                )}
-                {invoice.firstDueDate && (
-                  <div>
-                    <Label className="text-muted-foreground">Primeiro Vencimento</Label>
-                    <p>{formatDate(invoice.firstDueDate)}</p>
-                  </div>
-                )}
-                {invoice.paymentTerms && (
-                  <div>
-                    <Label className="text-muted-foreground">Condições</Label>
-                    <p>{invoice.paymentTerms}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {invoice.paymentMethod && (
+                    <div>
+                      <Label className="text-muted-foreground">Método</Label>
+                      <p>{invoice.paymentMethod}</p>
+                    </div>
+                  )}
+                  {invoice.installments > 1 && (
+                    <div>
+                      <Label className="text-muted-foreground">Parcelas</Label>
+                      <p>{invoice.installments}x</p>
+                    </div>
+                  )}
+                  {invoice.firstDueDate && (
+                    <div>
+                      <Label className="text-muted-foreground">Primeiro Vencimento</Label>
+                      <p>{formatDate(invoice.firstDueDate)}</p>
+                    </div>
+                  )}
+                  {invoice.paymentTerms && (
+                    <div>
+                      <Label className="text-muted-foreground">Condições</Label>
+                      <p>{invoice.paymentTerms}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Auditoria */}
             <Card>
