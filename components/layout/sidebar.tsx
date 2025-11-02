@@ -19,6 +19,7 @@ const navigation = [
   { name: "Saídas", href: "/cash-flow/exits", icon: TrendingDown, roles: ["administrator", "operational"] },
   { name: "Contas a Pagar", href: "/accounts-payable", icon: CreditCard, roles: ["administrator"] },
   { name: "Contas a Receber", href: "/accounts-receivable", icon: Clock, roles: ["master", "administrator", "operational"] },
+  { name: "Recebíveis de Cartão", href: "/card-receivables", icon: CreditCard, roles: ["master", "administrator"] },
   { name: "Usuários", href: "/users", icon: Users, roles: ["master", "administrator"] },
   { name: "Fornecedores", href: "/vendors", icon: Truck, roles: ["master", "administrator"] },
   { name: "Configurações", href: "/settings", icon: Settings, roles: ["master", "administrator", "operational"] },

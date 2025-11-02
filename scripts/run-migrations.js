@@ -62,7 +62,8 @@ async function runMigrations() {
       // "021_fix_stock_movement_type.sql",
       // "022_disable_nfe_triggers.sql",
       // "023_add_payment_category_to_nfe.sql",
-      "023_add_payment_category_to_nfe.sql"
+      // "024_create_card_receivables.sql",
+      "024_create_card_receivables.sql"
     ]
 
     let executedCount = 0

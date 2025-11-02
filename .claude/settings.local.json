@@ -6,7 +6,11 @@
       "Bash(node scripts/check-data.js:*)",
       "Bash(cat:*)",
       "Bash(app/nfe/[id]/edit/page.tsx)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(find:*)",
+      "Bash(node:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []
