@@ -25,11 +25,12 @@ export function TransactionList({ type }: TransactionListProps) {
   const [editingTransaction, setEditingTransaction] = useState<CashFlowTransaction | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<OpenOrder | null>(null)
   const [loading, setLoading] = useState(true)
-  const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "all" })
-  const [periodFilter, setPeriodFilter] = useState<string>("all")
+  const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "today" })
+  const [periodFilter, setPeriodFilter] = useState<string>("today")
   const [customStartDate, setCustomStartDate] = useState<string>("")
   const [customEndDate, setCustomEndDate] = useState<string>("")
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const { authState } = useAuth()
 
   const loadTransactions = async () => {
@@ -125,23 +126,34 @@ export function TransactionList({ type }: TransactionListProps) {
         const transactionDateOnly = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), transactionDate.getDate())
         const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
         const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
-        
+
         return transactionDateOnly >= startDateOnly && transactionDateOnly <= endDateOnly
       })
     }
 
     if (dateFilter.paymentMethod) {
-      filtered = filtered.filter(transaction => 
+      filtered = filtered.filter(transaction =>
         transaction.paymentMethod === dateFilter.paymentMethod
       )
     }
 
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter(transaction =>
+        transaction.category === categoryFilter
+      )
+    }
+
     setFilteredTransactions(filtered)
-  }, [transactions, dateFilter])
+  }, [transactions, dateFilter, categoryFilter])
 
   useEffect(() => {
     loadTransactions()
   }, [type])
+
+  useEffect(() => {
+    // Inicializar filtro para o dia atual
+    handlePeriodChange("today")
+  }, [])
 
   const handleSuccess = () => {
     loadTransactions()
@@ -259,6 +271,17 @@ export function TransactionList({ type }: TransactionListProps) {
     return filteredTransactions.length
   }
 
+  // Calcular valor total de vendas a prazo (ainda não recebido)
+  const getInstallmentSalesAmount = () => {
+    return filteredTransactions.reduce((total, transaction) => {
+      if (transaction.paymentMethod === 'a_prazo') {
+        const pendingAmount = transaction.amount - (transaction.amountReceived || 0)
+        return total + pendingAmount
+      }
+      return total
+    }, 0)
+  }
+
   if (editingTransaction) {
     return (
       <EditTransactionForm 
@@ -369,13 +392,25 @@ export function TransactionList({ type }: TransactionListProps) {
                 </option>
               ))}
             </select>
+            <select
+              className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="all">Todas Categorias</option>
+              {CashFlowService.getCategoryOptions(type).map((category) => (
+                <option key={category} value={category}>
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                </option>
+              ))}
+            </select>
           </div>
         </CardContent>
       </Card>
 
       <div>
         <h3 className="font-semibold text-sm mb-3 text-muted-foreground">Indicadores</h3>
-        <div className="grid grid-cols-1 gap-4">
+        <div className={`grid gap-4 ${type === "entry" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
           <Card>
             <CardContent className="p-4">
               <div className="text-center">
@@ -389,6 +424,22 @@ export function TransactionList({ type }: TransactionListProps) {
               </div>
             </CardContent>
           </Card>
+
+          {type === "entry" && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Vendas a Prazo</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Valor pendente de recebimento
+                  </p>
+                  <p className="text-xl font-bold text-orange-600">
+                    {formatCurrency(getInstallmentSalesAmount())}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
