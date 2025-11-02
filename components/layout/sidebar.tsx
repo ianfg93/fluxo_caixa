@@ -5,7 +5,9 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package, Clock, Menu, X, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
+import { useOpenOrdersCount } from "@/hooks/use-open-orders"
 import { cn } from "@/lib/utils"
 import { Truck } from "lucide-react"
 
@@ -33,6 +35,7 @@ export function Sidebar({ onCollapsedChange }: SidebarProps = {}) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const { authState, logout, hasPermission } = useAuth()
+  const { count: openOrdersCount } = useOpenOrdersCount()
 
   const handleToggleCollapse = () => {
     const newState = !isCollapsed
@@ -109,6 +112,8 @@ export function Sidebar({ onCollapsedChange }: SidebarProps = {}) {
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
           {filteredNavigation.map((item) => {
             const isActive = pathname === item.href
+            const showBadge = item.name === "Entradas" && openOrdersCount > 0
+
             return (
               <Link
                 key={item.name}
@@ -124,12 +129,32 @@ export function Sidebar({ onCollapsedChange }: SidebarProps = {}) {
                 title={isCollapsed ? item.name : undefined}
               >
                 <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-3")} />
-                {!isCollapsed && item.name}
+                {!isCollapsed && (
+                  <span className="flex-1">{item.name}</span>
+                )}
+
+                {/* Badge de notificação */}
+                {showBadge && !isCollapsed && (
+                  <Badge
+                    variant="destructive"
+                    className="ml-auto h-5 px-1.5 text-xs font-semibold"
+                  >
+                    {openOrdersCount}
+                  </Badge>
+                )}
+
+                {/* Badge para modo colapsado */}
+                {showBadge && isCollapsed && (
+                  <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center text-[10px] font-bold">
+                    {openOrdersCount > 9 ? '9+' : openOrdersCount}
+                  </div>
+                )}
 
                 {/* Tooltip para modo colapsado - apenas desktop */}
                 {isCollapsed && (
                   <div className="hidden lg:block absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                     {item.name}
+                    {showBadge && ` (${openOrdersCount})`}
                   </div>
                 )}
               </Link>

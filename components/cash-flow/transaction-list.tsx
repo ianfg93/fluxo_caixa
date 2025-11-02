@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, TrendingUp, TrendingDown, CreditCard, Filter } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Plus, Edit, Trash2, TrendingUp, TrendingDown, CreditCard, Filter, Receipt, ShoppingBag, AlertCircle } from "lucide-react"
 import { CashFlowService, type CashFlowTransaction, type TransactionType } from "@/lib/cash-flow"
 import { TransactionForm } from "./transaction-form"
 import { EntryForm } from "./entry-form"
@@ -12,6 +13,7 @@ import { EditTransactionForm } from "./edit-transaction-form"
 import { type DateFilter as DateFilterType } from "./date-filter"
 import { OpenOrder } from "@/lib/open-orders"
 import { useAuth } from "@/hooks/use-auth"
+import { useOpenOrdersCount } from "@/hooks/use-open-orders"
 import { OpenOrdersManager } from "./open-orders-manager"
 
 interface TransactionListProps {
@@ -32,6 +34,7 @@ export function TransactionList({ type }: TransactionListProps) {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const { authState } = useAuth()
+  const { count: openOrdersCount } = useOpenOrdersCount()
 
   const loadTransactions = async () => {
     try {
@@ -187,12 +190,12 @@ export function TransactionList({ type }: TransactionListProps) {
   const canEditOwn = (transaction: CashFlowTransaction) => {
     if (!authState.user) return false
     const role = authState.user.role
-    const isOwner = transaction.createdBy === authState.user.name || 
+    const isOwner = transaction.createdBy === authState.user.name ||
                    transaction.createdBy === authState.user.id
-    
+
     if (role === 'master' || role === 'administrator') return true
     if (role === 'operational' && isOwner) return true
-    
+
     return false
   }
 
@@ -260,8 +263,8 @@ export function TransactionList({ type }: TransactionListProps) {
   const getTotalAmount = () => {
     return filteredTransactions.reduce((total, transaction) => {
       // Para vendas a prazo, somar apenas o valor recebido
-      const amountToSum = transaction.amountReceived !== undefined 
-        ? transaction.amountReceived 
+      const amountToSum = transaction.amountReceived !== undefined
+        ? transaction.amountReceived
         : transaction.amount
       return total + amountToSum
     }, 0)
@@ -282,61 +285,9 @@ export function TransactionList({ type }: TransactionListProps) {
     }, 0)
   }
 
-  if (editingTransaction) {
-    return (
-      <EditTransactionForm 
-        transaction={editingTransaction}
-        onSuccess={handleSuccess}
-        onCancel={() => setEditingTransaction(null)}
-      />
-    )
-  }
-
-  if (showForm) {
-    if (type === "entry") {
-      return (
-        <EntryForm 
-          onSuccess={handleSuccess} 
-          onCancel={() => {
-            setShowForm(false)
-            setSelectedOrder(null)
-          }}
-          selectedOrder={selectedOrder}
-          onBackToOrders={handleBackToOrders}
-        />
-      )
-    } else {
-      return <TransactionForm type={type} onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
-    }
-  }
-
-  return (
-    <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          {type === "entry" ? (
-            <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-green-600 flex-shrink-0" />
-          ) : (
-            <TrendingDown className="h-5 w-5 md:h-6 md:w-6 text-red-600 flex-shrink-0" />
-          )}
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold">{type === "entry" ? "Entradas" : "Saídas"}</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Gerencie as {type === "entry" ? "entradas" : "saídas"} do fluxo de caixa
-            </p>
-          </div>
-        </div>
-        <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto text-sm md:text-base">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova {type === "entry" ? "Venda" : "Saída"}
-        </Button>
-      </div>
-
-      {/* Sistema de Comandas - Apenas para Entradas */}
-      {type === "entry" && (
-        <OpenOrdersManager onSelectOrder={handleSelectOrder} />
-      )}
-
+  // Componente reutilizável para a lista de transações
+  const TransactionsList = () => (
+    <>
       <Card>
         <CardContent className="p-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -456,7 +407,7 @@ export function TransactionList({ type }: TransactionListProps) {
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <p className="text-muted-foreground mb-4">
-                    {transactions.length === 0 
+                    {transactions.length === 0
                       ? `Nenhuma ${type === "entry" ? "entrada" : "saída"} encontrada`
                       : `Nenhuma ${type === "entry" ? "entrada" : "saída"} encontrada no período selecionado`
                     }
@@ -494,11 +445,9 @@ export function TransactionList({ type }: TransactionListProps) {
                     </div>
                     <div className="flex items-center gap-3 sm:flex-col sm:items-end">
                       <div className="text-left sm:text-right flex-1 sm:flex-auto">
-                        {/* ✅ MODIFICADO: Exibir valor recebido */}
                         <p className={`text-base md:text-lg font-bold ${type === "entry" ? "text-green-600" : "text-red-600"}`}>
                           {type === "entry" ? "+" : "-"} {formatCurrency(transaction.amountReceived !== undefined ? transaction.amountReceived : transaction.amount)}
                         </p>
-                        {/* ✅ NOVO: Badge para vendas a prazo */}
                         {transaction.paymentMethod === 'a_prazo' && transaction.amountReceived === 0 && (
                           <Badge variant="outline" className="mt-1 text-orange-600 border-orange-600 text-xs">
                             Total: {formatCurrency(transaction.amount)}
@@ -539,6 +488,109 @@ export function TransactionList({ type }: TransactionListProps) {
           )}
         </div>
       )}
+    </>
+  )
+
+  if (editingTransaction) {
+    return (
+      <EditTransactionForm
+        transaction={editingTransaction}
+        onSuccess={handleSuccess}
+        onCancel={() => setEditingTransaction(null)}
+      />
+    )
+  }
+
+  if (showForm) {
+    if (type === "entry") {
+      return (
+        <EntryForm
+          onSuccess={handleSuccess}
+          onCancel={() => {
+            setShowForm(false)
+            setSelectedOrder(null)
+          }}
+          selectedOrder={selectedOrder}
+          onBackToOrders={handleBackToOrders}
+        />
+      )
+    } else {
+      return <TransactionForm type={type} onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />
+    }
+  }
+
+  // Para tipo "entry", usar tabs; para "exit", usar interface simples
+  if (type === "entry") {
+    return (
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex items-center gap-3">
+          <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-green-600 flex-shrink-0" />
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Entradas</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Gerencie as vendas e comandas do estabelecimento
+            </p>
+          </div>
+        </div>
+
+        <Tabs defaultValue="sales" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+            <TabsTrigger value="sales" className="flex items-center gap-2">
+              <ShoppingBag className="h-4 w-4" />
+              Registrar Vendas
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="flex items-center gap-2 relative">
+              <Receipt className="h-4 w-4" />
+              Comandas
+              {openOrdersCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="ml-1 h-5 px-1.5 text-xs font-semibold animate-pulse"
+                >
+                  {openOrdersCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="sales" className="space-y-4 mt-4">
+            <div className="flex justify-end">
+              <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto text-sm md:text-base">
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Venda
+              </Button>
+            </div>
+            <TransactionsList />
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-4 mt-4">
+            <OpenOrdersManager onSelectOrder={handleSelectOrder} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    )
+  }
+
+  // Interface para saídas (sem tabs)
+  return (
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <TrendingDown className="h-5 w-5 md:h-6 md:w-6 text-red-600 flex-shrink-0" />
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Saídas</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Gerencie as saídas do fluxo de caixa
+            </p>
+          </div>
+        </div>
+        <Button onClick={() => setShowForm(true)} className="w-full sm:w-auto text-sm md:text-base">
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Saída
+        </Button>
+      </div>
+
+      <TransactionsList />
     </div>
   )
 }
