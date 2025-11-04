@@ -23,7 +23,7 @@ export default function AccountsPayablePage() {
   const [periodFilter, setPeriodFilter] = useState<string>("all")
   const [customStartDate, setCustomStartDate] = useState<string>("")
   const [customEndDate, setCustomEndDate] = useState<string>("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<string>("pending")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const { authState } = useAuth()
 
