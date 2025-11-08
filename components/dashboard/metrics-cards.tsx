@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Clock, CreditCard } from "lucide-react"
 import Link from "next/link"
 
-type PeriodFilter = "day" | "month" | "quarter" | "year" | "all"
+type PeriodFilter = "day" | "month" | "quarter" | "year" | "all" | "custom"
 
 interface MetricsCardsProps {
   metrics: {

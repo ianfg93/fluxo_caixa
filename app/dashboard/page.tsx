@@ -4,7 +4,9 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Calendar, TrendingUp, TrendingDown } from "lucide-react"
+import { Calendar as CalendarIcon, TrendingUp, TrendingDown } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { MetricsCards } from "@/components/dashboard/metrics-cards"
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart"
 import { AlertsPanel } from "@/components/dashboard/alerts-panel"
@@ -14,8 +16,11 @@ import { ReportsService } from "@/lib/reports"
 import { CashFlowService } from "@/lib/cash-flow"
 import { CardReceivablesService } from "@/lib/card-receivables"
 import { useAuth } from "@/hooks/use-auth"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
 
-type PeriodFilter = "day" | "month" | "quarter" | "year" | "all"
+type PeriodFilter = "day" | "month" | "quarter" | "year" | "all" | "custom"
 
 export default function DashboardPage() {
   const { authState } = useAuth()
@@ -30,16 +35,27 @@ export default function DashboardPage() {
   const [availableCompanies, setAvailableCompanies] = useState<any[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>("")
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>("day")
+  const [customDate, setCustomDate] = useState<Date>()
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
   const isMaster = authState.user?.role === 'master'
   const isAdmin = authState.user?.role === 'administrator' || isMaster
+
+  const handleDateSelect = (date: Date | undefined) => {
+    console.log('handleDateSelect chamado com:', date)
+    if (date) {
+      setCustomDate(date)
+      setSelectedPeriod("custom")
+      setIsCalendarOpen(false)
+    }
+  }
 
   useEffect(() => {
     if (isMaster) {
       loadAvailableCompanies()
     }
     loadDashboardData()
-  }, [selectedCompany, selectedPeriod])
+  }, [selectedCompany, selectedPeriod, customDate])
 
   async function loadAvailableCompanies() {
     try {
@@ -54,30 +70,39 @@ export default function DashboardPage() {
 
   // Calcular data de início baseado no período selecionado
   function getStartDate(period: PeriodFilter): Date | undefined {
+    // Se for data customizada, usar a data selecionada
+    if (period === "custom" && customDate) {
+      return new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate(), 0, 0, 0, 0)
+    }
+
     const now = new Date()
-    
+
     switch (period) {
       case "day":
         // Início do dia atual (00:00:00)
         return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
-      
+
       case "month":
         // Primeiro dia do mês atual
         return new Date(now.getFullYear(), now.getMonth(), 1)
-      
+
       case "quarter":
         // Primeiro dia do trimestre atual
         const currentQuarter = Math.floor(now.getMonth() / 3)
         return new Date(now.getFullYear(), currentQuarter * 3, 1)
-      
+
       case "year":
         // Primeiro dia do ano atual
         return new Date(now.getFullYear(), 0, 1)
-      
+
       case "all":
         // Sem filtro de data
         return undefined
-      
+
+      case "custom":
+        // Se não houver data customizada, retornar undefined
+        return undefined
+
       default:
         return undefined
     }
@@ -85,13 +110,22 @@ export default function DashboardPage() {
 
   // Calcular data de fim para períodos específicos
   function getEndDate(period: PeriodFilter): Date | undefined {
+    // Se for data customizada, usar a data selecionada
+    if (period === "custom" && customDate) {
+      return new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate(), 23, 59, 59, 999)
+    }
+
     const now = new Date()
-    
+
     switch (period) {
       case "day":
         // Final do dia atual (23:59:59.999)
         return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
-      
+
+      case "custom":
+        // Se não houver data customizada, retornar undefined
+        return undefined
+
       default:
         // Para outros períodos, não há data de fim específica
         return undefined
@@ -100,29 +134,40 @@ export default function DashboardPage() {
 
   function getPeriodLabel(period: PeriodFilter): string {
     const now = new Date()
-    
+
     switch (period) {
       case "day":
-        return now.toLocaleDateString("pt-BR", { 
-          weekday: "long", 
-          day: "numeric", 
-          month: "long", 
-          year: "numeric" 
+        return now.toLocaleDateString("pt-BR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric"
         })
-      
+
       case "month":
         return now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
-      
+
       case "quarter":
         const quarter = Math.floor(now.getMonth() / 3) + 1
         return `${quarter}º Trimestre de ${now.getFullYear()}`
-      
+
       case "year":
         return now.getFullYear().toString()
-      
+
       case "all":
         return "Todo o período"
-      
+
+      case "custom":
+        if (customDate) {
+          return customDate.toLocaleDateString("pt-BR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+          })
+        }
+        return "Data personalizada"
+
       default:
         return ""
     }
@@ -250,7 +295,7 @@ export default function DashboardPage() {
         <CardContent className="pt-4 md:pt-6">
           <div className="flex flex-col gap-3 md:gap-4">
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+              <CalendarIcon className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
               <span className="text-sm md:text-base font-medium">Período:</span>
             </div>
 
@@ -295,6 +340,32 @@ export default function DashboardPage() {
               >
                 Total
               </Button>
+
+              {/* Botão de Data Customizada com Calendário */}
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={selectedPeriod === "custom" ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      "text-xs md:text-sm justify-start text-left font-normal",
+                      !customDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customDate ? format(customDate, "dd/MM/yyyy") : "Data personalizada"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customDate}
+                    onSelect={handleDateSelect}
+                    defaultMonth={customDate}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="text-xs md:text-sm text-muted-foreground">
