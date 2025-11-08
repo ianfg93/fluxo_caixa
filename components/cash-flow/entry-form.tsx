@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
+import { CashFlowService, type PaymentMethod, type PaymentSplit } from "@/lib/cash-flow"
 import { ProductService, type Product } from "@/lib/products"
 import { OpenOrderService, type OpenOrder } from "@/lib/open-orders"
 import { CustomerService, type Customer } from "@/lib/customers"
@@ -22,6 +22,10 @@ interface SelectedProduct {
   quantity: number
   subtotal: number
   availableStock: number
+}
+
+interface PaymentSplitWithId extends PaymentSplit {
+  id: string
 }
 
 interface EntryFormProps {
@@ -38,18 +42,27 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
     notes: "",
     additionalNotes: "",
   })
-  
+
   const [products, setProducts] = useState<Product[]>([])
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
   const [productSearchTerm, setProductSearchTerm] = useState<string>("")
   const [selectedProductId, setSelectedProductId] = useState<string>("")
   const [currentQuantity, setCurrentQuantity] = useState<string>("1")
   const [extraAmount, setExtraAmount] = useState<string>("0")
-  
+
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
   const [isSavingOrder, setIsSavingOrder] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Estados para múltiplas formas de pagamento
+  const [useMultiplePayments, setUseMultiplePayments] = useState(false)
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplitWithId[]>([])
+  const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod | "">("")
+  const [newPaymentAmount, setNewPaymentAmount] = useState<string>("")
+
+  // Estados para cálculo de troco
+  const [cashGiven, setCashGiven] = useState<string>("")
 
   // ✅ NOVO: Estados para clientes
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -162,6 +175,61 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
       style: "currency",
       currency: "BRL",
     })
+  }
+
+  // Funções para múltiplas formas de pagamento
+  const getTotalPaymentSplits = (): number => {
+    return paymentSplits.reduce((sum, split) => sum + split.amount, 0)
+  }
+
+  const getRemainingAmount = (): number => {
+    const total = getTotalAmount()
+    const paid = getTotalPaymentSplits()
+    return Math.max(0, total - paid)
+  }
+
+  const handleAddPaymentSplit = () => {
+    if (!newPaymentMethod || !newPaymentAmount) {
+      setError("Selecione a forma de pagamento e informe o valor")
+      return
+    }
+
+    const amount = parseFloat(newPaymentAmount)
+    if (amount <= 0) {
+      setError("O valor deve ser maior que zero")
+      return
+    }
+
+    const remaining = getRemainingAmount()
+    if (amount > remaining) {
+      setError(`O valor não pode ser maior que o restante: ${formatCurrency(remaining)}`)
+      return
+    }
+
+    setPaymentSplits([
+      ...paymentSplits,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+        paymentMethod: newPaymentMethod,
+        amount,
+      },
+    ])
+
+    setNewPaymentMethod("")
+    setNewPaymentAmount("")
+    setError(null)
+  }
+
+  const handleRemovePaymentSplit = (id: string) => {
+    setPaymentSplits(paymentSplits.filter((split) => split.id !== id))
+  }
+
+  // Função para calcular o troco
+  const calculateChange = (): number => {
+    if (!cashGiven) return 0
+    const given = parseFloat(cashGiven)
+    const total = getTotalAmount()
+    return Math.max(0, given - total)
   }
 
   const handleSelectProduct = (productId: string) => {
@@ -288,8 +356,23 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         return
       }
 
+      // Validar pagamentos múltiplos
+      if (useMultiplePayments) {
+        const totalPaid = getTotalPaymentSplits()
+        if (totalPaid < totalAmount) {
+          setError(`Falta pagar ${formatCurrency(totalAmount - totalPaid)}. Adicione mais formas de pagamento.`)
+          setIsLoading(false)
+          return
+        }
+        if (paymentSplits.length === 0) {
+          setError("Adicione pelo menos uma forma de pagamento")
+          setIsLoading(false)
+          return
+        }
+      }
+
       // ✅ NOVO: Validar cliente para venda a prazo
-      if (formData.paymentMethod === 'a_prazo' && !selectedCustomerId) {
+      if (!useMultiplePayments && formData.paymentMethod === 'a_prazo' && !selectedCustomerId) {
         setError("Selecione um cliente para venda a prazo")
         setIsLoading(false)
         return
@@ -305,12 +388,40 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         amount: totalAmount,
         category: "vendas",
         date: localDate,
-        paymentMethod: formData.paymentMethod || undefined,
+        paymentMethod: useMultiplePayments ? undefined : (formData.paymentMethod || undefined),
         notes: formData.notes || undefined,
       }
 
+      // Adicionar informações de múltiplos pagamentos
+      if (useMultiplePayments) {
+        transactionData.paymentSplits = paymentSplits.map(split => ({
+          paymentMethod: split.paymentMethod,
+          amount: split.amount,
+        }))
+
+        // Adicionar nota sobre formas de pagamento
+        const paymentDetails = paymentSplits
+          .map(split => `${CashFlowService.formatPaymentMethod(split.paymentMethod)}: ${formatCurrency(split.amount)}`)
+          .join(", ")
+
+        transactionData.notes = transactionData.notes
+          ? `${transactionData.notes}\n\nFormas de Pagamento: ${paymentDetails}`
+          : `Formas de Pagamento: ${paymentDetails}`
+      }
+
+      // Adicionar informação de troco para pagamento em dinheiro
+      if (!useMultiplePayments && formData.paymentMethod === 'dinheiro' && cashGiven) {
+        const given = parseFloat(cashGiven)
+        const change = calculateChange()
+        if (given > 0 && change > 0) {
+          transactionData.notes = transactionData.notes
+            ? `${transactionData.notes}\n\nDinheiro recebido: ${formatCurrency(given)} | Troco: ${formatCurrency(change)}`
+            : `Dinheiro recebido: ${formatCurrency(given)} | Troco: ${formatCurrency(change)}`
+        }
+      }
+
       // ✅ NOVO: Lógica para vendas a prazo
-      if (formData.paymentMethod === 'a_prazo' && selectedCustomerId) {
+      if (!useMultiplePayments && formData.paymentMethod === 'a_prazo' && selectedCustomerId) {
         const customer = customers.find(c => c.id === selectedCustomerId)
         transactionData.customerId = selectedCustomerId
         transactionData.amountReceived = 0 // Venda a prazo não recebeu nada ainda
@@ -591,42 +702,203 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
             </div>
           </div>
 
-          {/* Data e Forma de Pagamento */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="date">Data da Venda</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                required
-              />
+          {/* Data da Venda */}
+          <div className="space-y-2">
+            <Label htmlFor="date">Data da Venda</Label>
+            <Input
+              id="date"
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              required
+            />
+          </div>
+
+          {/* Seção de Pagamento */}
+          <div className="space-y-4 p-4 border rounded-lg bg-green-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-green-600" />
+                <h3 className="font-semibold">Formas de Pagamento</h3>
+              </div>
+              <Button
+                type="button"
+                variant={useMultiplePayments ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setUseMultiplePayments(!useMultiplePayments)
+                  if (!useMultiplePayments) {
+                    setPaymentSplits([])
+                    setFormData({ ...formData, paymentMethod: "" })
+                  }
+                  setCashGiven("")
+                }}
+              >
+                {useMultiplePayments ? "Pagamento Único" : "Múltiplas Formas"}
+              </Button>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="paymentMethod">Forma de Pagamento</Label>
-              <Select
-                value={formData.paymentMethod}
-                onValueChange={(value) => setFormData({ ...formData, paymentMethod: value as PaymentMethod })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods.map((method) => (
-                    <SelectItem key={method.value} value={method.value}>
-                      {method.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!useMultiplePayments ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">Forma de Pagamento</Label>
+                  <Select
+                    value={formData.paymentMethod}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, paymentMethod: value as PaymentMethod })
+                      setCashGiven("")
+                    }}
+                    required={!useMultiplePayments}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method.value} value={method.value}>
+                          {method.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Calculadora de Troco para Dinheiro */}
+                {formData.paymentMethod === 'dinheiro' && (
+                  <div className="space-y-3 p-3 bg-green-100 border-2 border-green-300 rounded-md">
+                    <Label htmlFor="cashGiven">Cliente deu quanto? (Opcional)</Label>
+                    <Input
+                      id="cashGiven"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={cashGiven}
+                      onChange={(e) => setCashGiven(e.target.value)}
+                      placeholder="Ex: 50.00"
+                    />
+                    {cashGiven && parseFloat(cashGiven) >= getTotalAmount() && (
+                      <div className="p-3 bg-white border-2 border-green-500 rounded-md">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-green-900">Troco a devolver:</span>
+                          <span className="text-2xl font-bold text-green-600">
+                            {formatCurrency(calculateChange())}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {cashGiven && parseFloat(cashGiven) < getTotalAmount() && (
+                      <div className="p-2 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+                        ⚠️ Valor insuficiente. Falta: {formatCurrency(getTotalAmount() - parseFloat(cashGiven))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Interface para Múltiplas Formas de Pagamento */}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="newPaymentMethod">Forma de Pagamento</Label>
+                      <Select
+                        value={newPaymentMethod}
+                        onValueChange={(value) => setNewPaymentMethod(value as PaymentMethod)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {paymentMethods.filter(m => m.value !== 'a_prazo').map((method) => (
+                            <SelectItem key={method.value} value={method.value}>
+                              {method.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="newPaymentAmount">Valor</Label>
+                      <Input
+                        id="newPaymentAmount"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newPaymentAmount}
+                        onChange={(e) => setNewPaymentAmount(e.target.value)}
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleAddPaymentSplit}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Forma de Pagamento
+                  </Button>
+                </div>
+
+                {/* Lista de Pagamentos Adicionados */}
+                {paymentSplits.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Pagamentos Adicionados:</Label>
+                    <div className="space-y-2">
+                      {paymentSplits.map((split) => (
+                        <div
+                          key={split.id}
+                          className="flex items-center justify-between p-3 bg-white border rounded-md"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium">{CashFlowService.formatPaymentMethod(split.paymentMethod)}</p>
+                            <p className="text-sm text-green-600 font-semibold">{formatCurrency(split.amount)}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRemovePaymentSplit(split.id)}
+                            className="hover:bg-red-50 hover:text-red-600"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-3 border-t-2 border-green-300 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold">Total Pago:</span>
+                        <span className="text-lg font-bold text-green-600">
+                          {formatCurrency(getTotalPaymentSplits())}
+                        </span>
+                      </div>
+                      {getRemainingAmount() > 0 && (
+                        <div className="flex justify-between items-center text-orange-600">
+                          <span className="font-semibold">Falta Pagar:</span>
+                          <span className="text-lg font-bold">
+                            {formatCurrency(getRemainingAmount())}
+                          </span>
+                        </div>
+                      )}
+                      {getTotalPaymentSplits() >= getTotalAmount() && (
+                        <div className="p-2 bg-green-100 border border-green-400 rounded text-sm text-green-700 text-center">
+                          ✓ Pagamento completo!
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* ✅ NOVO: Seleção de Cliente - Apenas para A Prazo */}
-{formData.paymentMethod === 'a_prazo' && (
+{!useMultiplePayments && formData.paymentMethod === 'a_prazo' && (
   <div className="space-y-3 p-4 border-2 rounded-lg bg-orange-50 border-orange-300">
     <div className="flex items-center gap-2 mb-2">
       <UserCircle className="h-5 w-5 text-orange-600" />

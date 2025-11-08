@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const companyFilter = searchParams.get("company")
 
     let baseQuery = `
-      SELECT 
+      SELECT
         cft.id,
         cft.type,
         cft.description,
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         cft.created_at,
         cft.customer_id,
         cft.amount_received,
+        cft.payment_splits,
         u.name as created_by_name,
         c.name as customer_name
       FROM cash_flow_transactions cft
@@ -62,24 +63,42 @@ export async function GET(request: NextRequest) {
 
     const result = await query(finalQuery, queryParams)
 
-    const transactions = result.rows.map((row) => ({
-      id: row.id,
-      type: row.type,
-      description: row.description,
-      amount: Number.parseFloat(row.amount),
-      category: row.category,
-      date: row.transaction_date,
-      createdBy: row.created_by_name || 'Usuário não encontrado',
-      createdAt: row.created_at,
-      notes: row.notes,
-      paymentMethod: row.payment_method,
-      customerId: row.customer_id,
-      customerName: row.customer_name,
-      amountReceived: row.amount_received ? Number.parseFloat(row.amount_received) : Number.parseFloat(row.amount),
-    }))
+    const transactions = result.rows.map((row) => {
+      let paymentSplits = null
+
+      if (row.payment_splits) {
+        try {
+          // PostgreSQL JSONB pode retornar como string ou objeto
+          paymentSplits = typeof row.payment_splits === 'string'
+            ? JSON.parse(row.payment_splits)
+            : row.payment_splits
+        } catch (error) {
+          console.error('Erro ao parsear payment_splits:', error)
+          paymentSplits = null
+        }
+      }
+
+      return {
+        id: row.id,
+        type: row.type,
+        description: row.description,
+        amount: Number.parseFloat(row.amount),
+        category: row.category,
+        date: row.transaction_date,
+        createdBy: row.created_by_name || 'Usuário não encontrado',
+        createdAt: row.created_at,
+        notes: row.notes,
+        paymentMethod: row.payment_method,
+        customerId: row.customer_id,
+        customerName: row.customer_name,
+        amountReceived: row.amount_received ? Number.parseFloat(row.amount_received) : Number.parseFloat(row.amount),
+        paymentSplits,
+      }
+    })
 
     return NextResponse.json({ transactions })
   } catch (error) {
+    console.error('Erro ao buscar transações:', error)
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 })
   }
 }
@@ -92,17 +111,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { 
-      type, 
-      description, 
-      amount, 
-      category, 
-      date, 
-      paymentMethod, 
-      notes, 
+    const {
+      type,
+      description,
+      amount,
+      category,
+      date,
+      paymentMethod,
+      notes,
       products,
       customerId,
-      amountReceived 
+      amountReceived,
+      paymentSplits
     } = body
 
     if (!type || !description || !amount || !category || !date) {
@@ -124,9 +144,10 @@ export async function POST(request: NextRequest) {
         notes,
         created_by,
         customer_id,
-        amount_received
+        amount_received,
+        payment_splits
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
       `,
       [
@@ -140,7 +161,8 @@ export async function POST(request: NextRequest) {
         notes || null,
         user.id,
         customerId || null,
-        amountReceived !== undefined ? amountReceived : amount
+        amountReceived !== undefined ? amountReceived : amount,
+        paymentSplits ? JSON.stringify(paymentSplits) : null
       ]
     )
 

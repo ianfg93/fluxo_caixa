@@ -17,6 +17,11 @@ export type TransactionCategory =
 // ✅ MODIFICADO: Adicionar "a_prazo"
 export type PaymentMethod = "credito" | "debito" | "pix" | "dinheiro" | "a_prazo"
 
+export interface PaymentSplit {
+  paymentMethod: PaymentMethod
+  amount: number
+}
+
 export interface CashFlowTransaction {
   id: string
   type: TransactionType
@@ -32,6 +37,7 @@ export interface CashFlowTransaction {
   customerId?: string // ✅ NOVO
   customerName?: string // ✅ NOVO
   amountReceived?: number // ✅ NOVO
+  paymentSplits?: PaymentSplit[] | null // ✅ NOVO: Múltiplas formas de pagamento
 }
 
 export class CashFlowService {

@@ -12,7 +12,8 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(findstr:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npm run migrate:*)"
     ],
     "deny": [],
     "ask": []

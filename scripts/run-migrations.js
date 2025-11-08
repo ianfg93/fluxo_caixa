@@ -63,7 +63,7 @@ async function runMigrations() {
       // "022_disable_nfe_triggers.sql",
       // "023_add_payment_category_to_nfe.sql",
       // "024_create_card_receivables.sql",
-      "024_create_card_receivables.sql"
+      "025_add_payment_splits_to_cash_flow.sql"
     ]
 
     let executedCount = 0
@@ -116,18 +116,6 @@ async function runMigrations() {
     console.log(`📊 Resumo:`)
     console.log(`  ✅ Executadas: ${executedCount}`)
     console.log(`  ⏭️  Puladas: ${skippedCount}`)
-    
-    users.rows.forEach(user => {
-      const company = user.company ? ` (${user.company})` : ' (Sistema)'
-      console.log(`  👤 ${user.name} - ${user.email} - ${user.user_type}${company}`)
-    })
-
-    console.log("\n🏢 Empresas criadas:")
-    const companies = await client.query("SELECT name, cnpj, active FROM companies ORDER BY name")
-    companies.rows.forEach(company => {
-      const status = company.active ? '✅' : '❌'
-      console.log(`  🏢 ${company.name} - ${company.cnpj} ${status}`)
-    })
 
   } catch (error) {
     console.error("💥 Erro crítico:", error.message)
