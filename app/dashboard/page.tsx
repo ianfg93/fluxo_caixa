@@ -373,7 +373,7 @@ export default function DashboardPage() {
               Abrir Caixa
             </Button>
           )}
-          {cashRegisterStatus === 'open' && (
+
             <Button
               onClick={() => setWithdrawalDialogOpen(true)}
               variant="outline"
@@ -383,7 +383,7 @@ export default function DashboardPage() {
               <ArrowDownCircle className="h-4 w-4" />
               Sangria
             </Button>
-          )}
+
           <Button
             onClick={() => setDailyReportDialogOpen(true)}
             variant="outline"
