@@ -4,13 +4,13 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, CreditCard, CheckCircle, Filter } from "lucide-react"
+import { Plus, Edit, Trash2, CreditCard, CheckCircle, Filter, CalendarIcon } from "lucide-react"
 import { AccountsPayableService, type AccountPayable } from "@/lib/accounts-payable"
 import { AccountForm } from "@/components/accounts-payable/account-form"
 import { PaymentModal } from "@/components/accounts-payable/payment-modal"
 import { useAuth } from "@/hooks/use-auth"
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout"
-import { type DateFilter as DateFilterType } from "@/components/cash-flow/date-filter"
+import { DatePeriodFilter, type DatePeriodFilter as DateFilterType } from "@/components/ui/date-period-filter"
 
 export default function AccountsPayablePage() {
   const [accounts, setAccounts] = useState<AccountPayable[]>([])
@@ -20,9 +20,6 @@ export default function AccountsPayablePage() {
   const [paymentAccount, setPaymentAccount] = useState<AccountPayable | null>(null)
   const [loading, setLoading] = useState(true)
   const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "all" })
-  const [periodFilter, setPeriodFilter] = useState<string>("all")
-  const [customStartDate, setCustomStartDate] = useState<string>("")
-  const [customEndDate, setCustomEndDate] = useState<string>("")
   const [statusFilter, setStatusFilter] = useState<string>("pending")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const { authState } = useAuth()
@@ -39,63 +36,8 @@ export default function AccountsPayablePage() {
     }
   }
 
-  const handlePeriodChange = (period: string) => {
-    setPeriodFilter(period)
-
-    const today = new Date()
-    let startDate: string | undefined
-    let endDate: string | undefined
-
-    const formatDate = (date: Date): string => {
-      return date.toISOString().split('T')[0]
-    }
-
-    switch (period) {
-      case "today":
-        startDate = formatDate(today)
-        endDate = formatDate(today)
-        break
-
-      case "week":
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekStart.getDate() + 6)
-        startDate = formatDate(weekStart)
-        endDate = formatDate(weekEnd)
-        break
-
-      case "month":
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-        startDate = formatDate(monthStart)
-        endDate = formatDate(monthEnd)
-        break
-
-      case "all":
-        startDate = undefined
-        endDate = undefined
-        break
-
-      case "custom":
-        return
-    }
-
-    setDateFilter({
-      period: period as DateFilterType["period"],
-      startDate,
-      endDate
-    })
-  }
-
-  const handleCustomDateApply = () => {
-    if (customStartDate && customEndDate) {
-      setDateFilter({
-        period: "custom",
-        startDate: customStartDate,
-        endDate: customEndDate
-      })
-    }
+  const handleDateFilterChange = (filter: DateFilterType) => {
+    setDateFilter(filter)
   }
 
   useEffect(() => {
@@ -353,68 +295,45 @@ export default function AccountsPayablePage() {
         </div>
 
         <Card>
-          <CardContent className="p-3">
-            <div className="flex flex-wrap items-center gap-3">
+          <CardContent className="pt-4 md:pt-6">
+            <div className="flex flex-col gap-3 md:gap-4">
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="font-semibold text-sm">Filtros:</span>
+                <Filter className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                <span className="text-sm md:text-base font-medium">Filtros:</span>
               </div>
-              <select
-                className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
-                value={periodFilter}
-                onChange={(e) => handlePeriodChange(e.target.value)}
-              >
-                <option value="all">Todos Períodos</option>
-                <option value="today">Hoje</option>
-                <option value="week">Esta Semana</option>
-                <option value="month">Este Mês</option>
-                <option value="custom">Personalizado</option>
-              </select>
-              {periodFilter === "custom" && (
-                <>
-                  <input
-                    type="date"
-                    className="px-3 py-1.5 border rounded-md text-sm"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    placeholder="Data inicial"
+
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs text-muted-foreground font-medium">Período:</span>
+                  <DatePeriodFilter
+                    onFilterChange={handleDateFilterChange}
+                    currentFilter={dateFilter}
                   />
-                  <input
-                    type="date"
-                    className="px-3 py-1.5 border rounded-md text-sm"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    placeholder="Data final"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleCustomDateApply}
-                    disabled={!customStartDate || !customEndDate}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
                   >
-                    Aplicar
-                  </Button>
-                </>
-              )}
-              <select
-                className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">Todos Status</option>
-                <option value="pending">Pendentes</option>
-                <option value="paid">Pagos</option>
-              </select>
-              <select
-                className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-              >
-                <option value="all">Todas Prioridades</option>
-                <option value="urgent">Urgente</option>
-                <option value="high">Alta</option>
-                <option value="medium">Média</option>
-                <option value="low">Baixa</option>
-              </select>
+                    <option value="all">Todos Status</option>
+                    <option value="pending">Pendentes</option>
+                    <option value="paid">Pagos</option>
+                  </select>
+                  <select
+                    className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                  >
+                    <option value="all">Todas Prioridades</option>
+                    <option value="urgent">Urgente</option>
+                    <option value="high">Alta</option>
+                    <option value="medium">Média</option>
+                    <option value="low">Baixa</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
+import { DatePeriodFilter, type DatePeriodFilter as DateFilterType } from "@/components/ui/date-period-filter"
+import { Filter } from "lucide-react"
 
 export interface DateFilter {
   period: "today" | "week" | "month" | "custom" | "all"
@@ -21,59 +21,21 @@ interface DateFilterProps {
 }
 
 export function DateFilter({ onFilterChange, currentFilter }: DateFilterProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState<DateFilter["period"]>(currentFilter.period)
-  const [customStartDate, setCustomStartDate] = useState("")
-  const [customEndDate, setCustomEndDate] = useState("")
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | "all">("all")
+  const [dateFilter, setDateFilter] = useState<DateFilterType>({
+    period: currentFilter.period,
+    startDate: currentFilter.startDate,
+    endDate: currentFilter.endDate
+  })
 
   const paymentMethods = CashFlowService.getPaymentMethodOptions()
 
-  useEffect(() => {
-    handlePeriodChange(selectedPeriod)
-  }, [])
-
-  const handlePeriodChange = (period: DateFilter["period"]) => {
-    setSelectedPeriod(period)
-    
-    const today = new Date()
-    let startDate: string | undefined
-    let endDate: string | undefined
-
-    switch (period) {
-      case "today":
-        startDate = formatDate(today)
-        endDate = formatDate(today)
-        break
-      
-      case "week":
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekStart.getDate() + 6)
-        startDate = formatDate(weekStart)
-        endDate = formatDate(weekEnd)
-        break
-      
-      case "month":
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-        startDate = formatDate(monthStart)
-        endDate = formatDate(monthEnd)
-        break
-      
-      case "all":
-        startDate = undefined
-        endDate = undefined
-        break
-      
-      case "custom":
-        return
-    }
-
-    onFilterChange({ 
-      period, 
-      startDate, 
-      endDate,
+  const handleDateFilterChange = (filter: DateFilterType) => {
+    setDateFilter(filter)
+    onFilterChange({
+      period: filter.period,
+      startDate: filter.startDate,
+      endDate: filter.endDate,
       paymentMethod: selectedPaymentMethod === "all" ? undefined : selectedPaymentMethod
     })
   }
@@ -81,47 +43,29 @@ export function DateFilter({ onFilterChange, currentFilter }: DateFilterProps) {
   const handlePaymentMethodChange = (method: PaymentMethod | "all") => {
     setSelectedPaymentMethod(method)
     onFilterChange({
-      period: selectedPeriod,
-      startDate: selectedPeriod === "custom" ? customStartDate : currentFilter.startDate,
-      endDate: selectedPeriod === "custom" ? customEndDate : currentFilter.endDate,
+      period: dateFilter.period,
+      startDate: dateFilter.startDate,
+      endDate: dateFilter.endDate,
       paymentMethod: method === "all" ? undefined : method
     })
   }
 
-  const handleCustomDateChange = () => {
-    if (customStartDate && customEndDate) {
-      onFilterChange({
-        period: "custom",
-        startDate: customStartDate,
-        endDate: customEndDate,
-        paymentMethod: selectedPaymentMethod === "all" ? undefined : selectedPaymentMethod
-      })
-    }
-  }
-
-  const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0]
-  }
-
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Período</Label>
-              <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Hoje</SelectItem>
-                  <SelectItem value="week">Esta Semana</SelectItem>
-                  <SelectItem value="month">Este Mês</SelectItem>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="custom">Personalizado</SelectItem>
-                </SelectContent>
-              </Select>
+      <CardContent className="pt-4 md:pt-6">
+        <div className="flex flex-col gap-3 md:gap-4">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+            <span className="text-sm md:text-base font-medium">Filtros:</span>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2">
+              <span className="text-xs text-muted-foreground font-medium">Período:</span>
+              <DatePeriodFilter
+                onFilterChange={handleDateFilterChange}
+                currentFilter={dateFilter}
+              />
             </div>
 
             <div className="space-y-2">
@@ -141,38 +85,6 @@ export function DateFilter({ onFilterChange, currentFilter }: DateFilterProps) {
               </Select>
             </div>
           </div>
-
-          {selectedPeriod === "custom" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startDate">Data Inicial</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endDate">Data Final</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  onClick={handleCustomDateChange}
-                  disabled={!customStartDate || !customEndDate}
-                  className="w-full"
-                >
-                  Aplicar
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
