@@ -37,7 +37,16 @@ export function DatePeriodFilter({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
   const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0]
+    // Converte para o timezone de Brasília
+    const brazilDate = new Date(date.toLocaleString('en-US', {
+      timeZone: 'America/Sao_Paulo'
+    }))
+
+    const year = brazilDate.getFullYear()
+    const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
+    const day = String(brazilDate.getDate()).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
   }
 
   const handlePeriodChange = (period: PeriodType) => {

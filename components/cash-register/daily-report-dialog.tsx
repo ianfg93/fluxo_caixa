@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CashRegisterService, type DailyReport } from "@/lib/cash-register"
 import { FileText, Printer, Calendar, DollarSign } from "lucide-react"
+import { getTodayBrazil } from "@/lib/utils"
 
 interface DailyReportDialogProps {
   open: boolean
@@ -22,7 +23,7 @@ interface DailyReportDialogProps {
 
 export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: DailyReportDialogProps) {
   const [report, setReport] = useState<DailyReport | null>(null)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState(getTodayBrazil())
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {

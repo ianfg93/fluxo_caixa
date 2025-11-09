@@ -93,7 +93,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Valor de abertura inválido" }, { status: 400 })
     }
 
-    const date = openingDate || new Date().toISOString().split('T')[0]
+    // Converte para o timezone de Brasília
+    const getTodayBrazil = () => {
+      const now = new Date()
+      const brazilDate = new Date(now.toLocaleString('en-US', {
+        timeZone: 'America/Sao_Paulo'
+      }))
+
+      const year = brazilDate.getFullYear()
+      const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
+      const day = String(brazilDate.getDate()).padStart(2, '0')
+
+      return `${year}-${month}-${day}`
+    }
+
+    const date = openingDate || getTodayBrazil()
 
     // Verificar se já existe caixa aberto para esta empresa hoje
     const existingOpen = await query(

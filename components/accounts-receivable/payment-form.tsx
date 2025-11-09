@@ -11,6 +11,7 @@ import { CashFlowService, type PaymentMethod } from "@/lib/cash-flow"
 import { type Customer } from "@/lib/customers"
 import { useAuth } from "@/hooks/use-auth"
 import { DollarSign, AlertCircle } from "lucide-react"
+import { getTodayBrazil } from "@/lib/utils"
 
 interface PaymentFormProps {
   customer: Customer
@@ -21,7 +22,7 @@ interface PaymentFormProps {
 export function PaymentForm({ customer, onSuccess, onCancel }: PaymentFormProps) {
   const { authState } = useAuth()
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: getTodayBrazil(),
     amount: "",
     paymentMethod: "" as PaymentMethod | "",
     notes: "",

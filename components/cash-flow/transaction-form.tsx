@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CashFlowService, type TransactionType, type TransactionCategory, type PaymentMethod } from "@/lib/cash-flow"
+import { getTodayBrazil } from "@/lib/utils"
 
 interface TransactionFormProps {
   type: TransactionType
@@ -20,7 +21,7 @@ export function TransactionForm({ type, onSuccess, onCancel }: TransactionFormPr
   const [formData, setFormData] = useState({
     amount: "",
     category: "" as TransactionCategory,
-    date: new Date().toISOString().split("T")[0],
+    date: getTodayBrazil(),
     notes: "",
     paymentMethod: "" as PaymentMethod | "",
   })

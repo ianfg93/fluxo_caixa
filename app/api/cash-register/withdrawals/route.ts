@@ -78,7 +78,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Motivo é obrigatório" }, { status: 400 })
     }
 
-    const today = new Date().toISOString().split('T')[0]
+    // Converte para o timezone de Brasília
+    const now = new Date()
+    const brazilDate = new Date(now.toLocaleString('en-US', {
+      timeZone: 'America/Sao_Paulo'
+    }))
+
+    const year = brazilDate.getFullYear()
+    const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
+    const day = String(brazilDate.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
 
     // Buscar sessão de caixa aberta do dia (opcional)
     const sessionResult = await query(

@@ -14,6 +14,7 @@ import { OpenOrderService, type OpenOrder } from "@/lib/open-orders"
 import { CustomerService, type Customer } from "@/lib/customers"
 import { Textarea } from "../ui/textarea"
 import { Plus, X, Package, Calculator, Search, Save, DollarSign, Receipt, ArrowLeft, UserCircle } from "lucide-react"
+import { getTodayBrazil } from "@/lib/utils"
 
 interface SelectedProduct {
   productId: string
@@ -38,7 +39,7 @@ interface EntryFormProps {
 
 export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }: EntryFormProps) {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: getTodayBrazil(),
     paymentMethod: "" as PaymentMethod | "",
     notes: "",
     additionalNotes: "",

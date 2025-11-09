@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AccountsPayableService, type PaymentPriority, type AccountPayable } from "@/lib/accounts-payable"
 import { VendorsService, type Vendor } from "@/lib/vendors"
+import { getTodayBrazil, toDateStringBrazil } from "@/lib/utils"
 
 interface AccountFormProps {
   account?: AccountPayable
@@ -21,13 +22,13 @@ export function AccountForm({ account, onSuccess, onCancel }: AccountFormProps) 
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [loadingVendors, setLoadingVendors] = useState(true)
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
-  
+
   const [formData, setFormData] = useState({
     vendorId: account?.vendorId || "",  // ← CORRIGIDO: agora inicializa com vendorId do account
     description: account?.description || "",
     amount: account?.amount?.toString() || "",
-    dueDate: account ? new Date(account.dueDate).toISOString().split("T")[0] : "",
-    issueDate: account ? new Date(account.issueDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+    dueDate: account ? toDateStringBrazil(new Date(account.dueDate)) : "",
+    issueDate: account ? toDateStringBrazil(new Date(account.issueDate)) : getTodayBrazil(),
     priority: (account?.priority as PaymentPriority) || "medium",
     category: account?.category || "",
     invoiceNumber: account?.invoiceNumber || "",

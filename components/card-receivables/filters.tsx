@@ -24,7 +24,17 @@ export function Filters({ onFilterChange }: FiltersProps) {
 
   // Apply initial filter on mount
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0]
+    // Converte para o timezone de Brasília
+    const now = new Date()
+    const brazilDate = new Date(now.toLocaleString('en-US', {
+      timeZone: 'America/Sao_Paulo'
+    }))
+
+    const year = brazilDate.getFullYear()
+    const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
+    const day = String(brazilDate.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
+
     onFilterChange({ startDate: today, endDate: today })
   }, [])
 

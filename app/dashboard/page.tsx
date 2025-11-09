@@ -75,7 +75,17 @@ export default function DashboardPage() {
 
   async function checkCashRegisterStatus() {
     try {
-      const today = new Date().toISOString().split('T')[0]
+      // Converte para o timezone de Brasília
+      const now = new Date()
+      const brazilDate = new Date(now.toLocaleString('en-US', {
+        timeZone: 'America/Sao_Paulo'
+      }))
+
+      const year = brazilDate.getFullYear()
+      const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
+      const day = String(brazilDate.getDate()).padStart(2, '0')
+      const today = `${year}-${month}-${day}`
+
       const sessions = await CashRegisterService.getSessions('open', today)
       if (sessions.length > 0) {
         setCashRegisterStatus('open')

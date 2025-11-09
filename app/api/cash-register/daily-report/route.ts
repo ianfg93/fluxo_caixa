@@ -13,7 +13,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const date = searchParams.get("date") || new Date().toISOString().split('T')[0]
+
+    // Converte para o timezone de Brasília
+    const getTodayBrazil = () => {
+      const now = new Date()
+      const brazilDate = new Date(now.toLocaleString('en-US', {
+        timeZone: 'America/Sao_Paulo'
+      }))
+
+      const year = brazilDate.getFullYear()
+      const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
+      const day = String(brazilDate.getDate()).padStart(2, '0')
+
+      return `${year}-${month}-${day}`
+    }
+
+    const date = searchParams.get("date") || getTodayBrazil()
 
     // 1. Buscar sessão de caixa do dia
     const sessionResult = await query(

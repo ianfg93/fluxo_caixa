@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import type { AccountPayable } from "@/lib/accounts-payable"
 import { AccountsPayableService } from "@/lib/accounts-payable"
+import { getTodayBrazil } from "@/lib/utils"
 
 interface PaymentModalProps {
   account: AccountPayable
@@ -25,7 +26,7 @@ interface PaymentModalProps {
 
 export function PaymentModal({ account, onSuccess, onCancel }: PaymentModalProps) {
   const [formData, setFormData] = useState({
-    paidDate: new Date().toISOString().split("T")[0],
+    paidDate: getTodayBrazil(),
     paymentMethod: "",
     notes: "",
   })
