@@ -5,8 +5,6 @@ import { ApiAuthService } from "@/lib/api-auth"
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  console.log('=== GET /api/nfe INICIOU ===')
-
   try {
     console.log('1. Autenticando...')
     const user = await ApiAuthService.authenticateRequest(request)

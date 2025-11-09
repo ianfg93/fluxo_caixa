@@ -26,6 +26,7 @@ interface SelectedProduct {
 
 interface PaymentSplitWithId extends PaymentSplit {
   id: string
+  customerId?: string
 }
 
 interface EntryFormProps {
@@ -55,18 +56,19 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
   const [isSavingOrder, setIsSavingOrder] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Estados para múltiplas formas de pagamento
+  // Estados para Vendas por Forma de Pagamento de pagamento
   const [useMultiplePayments, setUseMultiplePayments] = useState(false)
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplitWithId[]>([])
   const [newPaymentMethod, setNewPaymentMethod] = useState<PaymentMethod | "">("")
   const [newPaymentAmount, setNewPaymentAmount] = useState<string>("")
+  const [newPaymentCustomerId, setNewPaymentCustomerId] = useState<string>("") // Cliente para o split sendo adicionado
 
   // Estados para cálculo de troco
   const [cashGiven, setCashGiven] = useState<string>("")
 
   // ✅ NOVO: Estados para clientes
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("")
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("") // Cliente para pagamento único
   const [customerSearchTerm, setCustomerSearchTerm] = useState<string>("")
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
 
@@ -194,6 +196,12 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
       return
     }
 
+    // Validar cliente para pagamento a prazo
+    if (newPaymentMethod === 'a_prazo' && !newPaymentCustomerId) {
+      setError("Selecione um cliente para pagamento a prazo")
+      return
+    }
+
     const amount = parseFloat(newPaymentAmount)
     if (amount <= 0) {
       setError("O valor deve ser maior que zero")
@@ -212,11 +220,13 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
         paymentMethod: newPaymentMethod,
         amount,
+        customerId: newPaymentMethod === 'a_prazo' ? newPaymentCustomerId : undefined,
       },
     ])
 
     setNewPaymentMethod("")
     setNewPaymentAmount("")
+    setNewPaymentCustomerId("")
     setError(null)
   }
 
@@ -766,7 +776,7 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
                 {/* Calculadora de Troco para Dinheiro */}
                 {formData.paymentMethod === 'dinheiro' && (
                   <div className="space-y-3 p-3 bg-green-100 border-2 border-green-300 rounded-md">
-                    <Label htmlFor="cashGiven">Cliente deu quanto? (Opcional)</Label>
+                    <Label htmlFor="cashGiven">Valor recebido - (Opcional)</Label>
                     <Input
                       id="cashGiven"
                       type="number"
@@ -803,13 +813,18 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
                       <Label htmlFor="newPaymentMethod">Forma de Pagamento</Label>
                       <Select
                         value={newPaymentMethod}
-                        onValueChange={(value) => setNewPaymentMethod(value as PaymentMethod)}
+                        onValueChange={(value) => {
+                          setNewPaymentMethod(value as PaymentMethod)
+                          if (value !== 'a_prazo') {
+                            setNewPaymentCustomerId("")
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                          {paymentMethods.filter(m => m.value !== 'a_prazo').map((method) => (
+                          {paymentMethods.map((method) => (
                             <SelectItem key={method.value} value={method.value}>
                               {method.label}
                             </SelectItem>
@@ -832,6 +847,88 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
                     </div>
                   </div>
 
+                  {/* Seletor de Cliente para A Prazo */}
+                  {newPaymentMethod === 'a_prazo' && (
+                    <div className="space-y-3 p-4 border-2 rounded-lg bg-orange-50 border-orange-300">
+                      <div className="flex items-center gap-2">
+                        <UserCircle className="h-5 w-5 text-orange-600" />
+                        <h4 className="font-semibold text-orange-900">Selecionar Cliente *</h4>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="text"
+                            placeholder="Digite o nome, CPF/CNPJ ou telefone do cliente..."
+                            value={customerSearchTerm}
+                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                            className="pl-10 bg-white border-orange-300"
+                            disabled={isLoadingCustomers}
+                          />
+                          {customerSearchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCustomerSearchTerm("")
+                                setNewPaymentCustomerId("")
+                              }}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Lista de Clientes Filtrados */}
+                      {customerSearchTerm && (
+                        <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md bg-white p-2">
+                          {isLoadingCustomers ? (
+                            <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+                          ) : filteredCustomers.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              {customers.length === 0
+                                ? "Nenhum cliente cadastrado"
+                                : "Nenhum cliente encontrado"}
+                            </p>
+                          ) : (
+                            filteredCustomers.map((customer) => (
+                              <div
+                                key={customer.id}
+                                onClick={() => {
+                                  setNewPaymentCustomerId(customer.id)
+                                  setCustomerSearchTerm("")
+                                }}
+                                className={`p-3 rounded-md border cursor-pointer transition-colors ${
+                                  newPaymentCustomerId === customer.id
+                                    ? 'bg-orange-100 border-orange-400'
+                                    : 'hover:bg-gray-50 border-gray-200'
+                                }`}
+                              >
+                                <p className="font-medium text-sm">{customer.name}</p>
+                                <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                                  {customer.cpfCnpj && <span>CPF/CNPJ: {customer.cpfCnpj}</span>}
+                                  {customer.phone && <span>Tel: {customer.phone}</span>}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+
+                      {/* Cliente Selecionado */}
+                      {newPaymentCustomerId && !customerSearchTerm && (
+                        <div className="p-3 bg-white border-2 border-orange-400 rounded-md">
+                          <p className="text-sm font-medium text-orange-900">Cliente selecionado:</p>
+                          <p className="font-semibold">
+                            {customers.find(c => c.id === newPaymentCustomerId)?.name || "Cliente não encontrado"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <Button
                     type="button"
                     onClick={handleAddPaymentSplit}
@@ -848,26 +945,35 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
                   <div className="space-y-2">
                     <Label>Pagamentos Adicionados:</Label>
                     <div className="space-y-2">
-                      {paymentSplits.map((split) => (
-                        <div
-                          key={split.id}
-                          className="flex items-center justify-between p-3 bg-white border rounded-md"
-                        >
-                          <div className="flex-1">
-                            <p className="font-medium">{CashFlowService.formatPaymentMethod(split.paymentMethod)}</p>
-                            <p className="text-sm text-green-600 font-semibold">{formatCurrency(split.amount)}</p>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleRemovePaymentSplit(split.id)}
-                            className="hover:bg-red-50 hover:text-red-600"
+                      {paymentSplits.map((split) => {
+                        const customer = split.customerId ? customers.find(c => c.id === split.customerId) : null
+                        return (
+                          <div
+                            key={split.id}
+                            className="flex items-center justify-between p-3 bg-white border rounded-md"
                           >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                            <div className="flex-1">
+                              <p className="font-medium">{CashFlowService.formatPaymentMethod(split.paymentMethod)}</p>
+                              <p className="text-sm text-green-600 font-semibold">{formatCurrency(split.amount)}</p>
+                              {customer && (
+                                <p className="text-xs text-blue-600 flex items-center gap-1 mt-1">
+                                  <UserCircle className="h-3 w-3" />
+                                  {customer.name}
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleRemovePaymentSplit(split.id)}
+                              className="hover:bg-red-50 hover:text-red-600"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )
+                      })}
                     </div>
 
                     <div className="pt-3 border-t-2 border-green-300 space-y-2">

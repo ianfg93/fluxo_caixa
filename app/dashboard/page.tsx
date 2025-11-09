@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, TrendingUp, TrendingDown } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Calendar as CalendarIcon, TrendingUp, TrendingDown, DollarSign, FileText, ArrowDownCircle } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { MetricsCards } from "@/components/dashboard/metrics-cards"
@@ -12,9 +13,14 @@ import { CashFlowChart } from "@/components/dashboard/cash-flow-chart"
 import { AlertsPanel } from "@/components/dashboard/alerts-panel"
 import { CardReceivablesWidget } from "@/components/dashboard/card-receivables-widget"
 import { CardReceivablesChart } from "@/components/dashboard/card-receivables-chart"
+import { OpenRegisterDialog } from "@/components/cash-register/open-register-dialog"
+import { DailyReportDialog } from "@/components/cash-register/daily-report-dialog"
+import { WithdrawalDialog } from "@/components/cash-register/withdrawal-dialog"
+import { CloseRegisterDialog } from "@/components/cash-register/close-register-dialog"
 import { ReportsService } from "@/lib/reports"
 import { CashFlowService } from "@/lib/cash-flow"
 import { CardReceivablesService } from "@/lib/card-receivables"
+import { CashRegisterService } from "@/lib/cash-register"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
@@ -38,6 +44,15 @@ export default function DashboardPage() {
   const [customDate, setCustomDate] = useState<Date>()
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
+  // Estados para controle dos diálogos de caixa
+  const [openRegisterDialogOpen, setOpenRegisterDialogOpen] = useState(false)
+  const [dailyReportDialogOpen, setDailyReportDialogOpen] = useState(false)
+  const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false)
+  const [closeRegisterDialogOpen, setCloseRegisterDialogOpen] = useState(false)
+  const [cashRegisterStatus, setCashRegisterStatus] = useState<'open' | 'closed' | 'none'>('none')
+  const [currentSessionId, setCurrentSessionId] = useState<string>('')
+  const [expectedClosingAmount, setExpectedClosingAmount] = useState<number>(0)
+
   const isMaster = authState.user?.role === 'master'
   const isAdmin = authState.user?.role === 'administrator' || isMaster
 
@@ -55,7 +70,51 @@ export default function DashboardPage() {
       loadAvailableCompanies()
     }
     loadDashboardData()
+    checkCashRegisterStatus()
   }, [selectedCompany, selectedPeriod, customDate])
+
+  async function checkCashRegisterStatus() {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const sessions = await CashRegisterService.getSessions('open', today)
+      if (sessions.length > 0) {
+        setCashRegisterStatus('open')
+        setCurrentSessionId(sessions[0].id)
+
+        // Buscar o relatório para calcular o valor esperado EM DINHEIRO FÍSICO
+        const report = await CashRegisterService.getDailyReport(today)
+        if (report) {
+          // Calcular apenas dinheiro físico: Abertura + Vendas em Dinheiro - Sangrias
+          const cashInHand = report.summary.openingAmount +
+                            (report.summary.paymentTotals.dinheiro || 0) -
+                            (report.summary.totalWithdrawals || 0)
+          setExpectedClosingAmount(cashInHand)
+        }
+      } else {
+        setCashRegisterStatus('none')
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status do caixa:', error)
+    }
+  }
+
+  function handleOpenRegisterSuccess() {
+    setCashRegisterStatus('open')
+    loadDashboardData()
+    checkCashRegisterStatus()
+  }
+
+  function handleWithdrawalSuccess() {
+    loadDashboardData()
+    checkCashRegisterStatus()
+  }
+
+  function handleCloseRegisterSuccess() {
+    setCashRegisterStatus('none')
+    setCurrentSessionId('')
+    setExpectedClosingAmount(0)
+    loadDashboardData()
+  }
 
   async function loadAvailableCompanies() {
     try {
@@ -282,13 +341,74 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Visão geral completa do fluxo de caixa
-          {selectedCompany && selectedCompany !== 'all' && ` - ${availableCompanies.find(c => c.id === selectedCompany)?.name}`}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
+            Visão geral completa do fluxo de caixa
+            {selectedCompany && selectedCompany !== 'all' && ` - ${availableCompanies.find(c => c.id === selectedCompany)?.name}`}
+          </p>
+        </div>
+
+        {/* Botões de Caixa */}
+        <div className="flex flex-wrap gap-2">
+          {cashRegisterStatus === 'none' && (
+            <Button
+              onClick={() => setOpenRegisterDialogOpen(true)}
+              variant="default"
+              size="sm"
+              className="gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <DollarSign className="h-4 w-4" />
+              Abrir Caixa
+            </Button>
+          )}
+          {cashRegisterStatus === 'open' && (
+            <Button
+              onClick={() => setWithdrawalDialogOpen(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <ArrowDownCircle className="h-4 w-4" />
+              Sangria
+            </Button>
+          )}
+          <Button
+            onClick={() => setDailyReportDialogOpen(true)}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <FileText className="h-4 w-4" />
+            Relatório Diário
+          </Button>
+        </div>
       </div>
+
+      {/* Diálogos */}
+      <OpenRegisterDialog
+        open={openRegisterDialogOpen}
+        onOpenChange={setOpenRegisterDialogOpen}
+        onSuccess={handleOpenRegisterSuccess}
+      />
+      <WithdrawalDialog
+        open={withdrawalDialogOpen}
+        onOpenChange={setWithdrawalDialogOpen}
+        onSuccess={handleWithdrawalSuccess}
+      />
+      <CloseRegisterDialog
+        open={closeRegisterDialogOpen}
+        onOpenChange={setCloseRegisterDialogOpen}
+        onSuccess={handleCloseRegisterSuccess}
+        sessionId={currentSessionId}
+        expectedAmount={expectedClosingAmount}
+      />
+      <DailyReportDialog
+        open={dailyReportDialogOpen}
+        onOpenChange={setDailyReportDialogOpen}
+        onCloseRegister={() => setCloseRegisterDialogOpen(true)}
+      />
 
       {/* Filtros */}
       <Card>
