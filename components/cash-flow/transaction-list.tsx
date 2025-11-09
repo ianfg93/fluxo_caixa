@@ -11,10 +11,13 @@ import { TransactionForm } from "./transaction-form"
 import { EntryForm } from "./entry-form"
 import { EditTransactionForm } from "./edit-transaction-form"
 import { type DateFilter as DateFilterType } from "./date-filter"
+import { DatePeriodFilter, type DatePeriodFilter as PeriodFilterType } from "@/components/ui/date-period-filter"
 import { OpenOrder } from "@/lib/open-orders"
 import { useAuth } from "@/hooks/use-auth"
 import { useOpenOrdersCount } from "@/hooks/use-open-orders"
 import { OpenOrdersManager } from "./open-orders-manager"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface TransactionListProps {
   type: TransactionType
@@ -27,10 +30,7 @@ export function TransactionList({ type }: TransactionListProps) {
   const [editingTransaction, setEditingTransaction] = useState<CashFlowTransaction | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<OpenOrder | null>(null)
   const [loading, setLoading] = useState(true)
-  const [dateFilter, setDateFilter] = useState<DateFilterType>({ period: "today" })
-  const [periodFilter, setPeriodFilter] = useState<string>("today")
-  const [customStartDate, setCustomStartDate] = useState<string>("")
-  const [customEndDate, setCustomEndDate] = useState<string>("")
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilterType>({ period: "today" })
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const { authState } = useAuth()
@@ -48,98 +48,53 @@ export function TransactionList({ type }: TransactionListProps) {
     }
   }
 
-  const handlePeriodChange = (period: string) => {
-    setPeriodFilter(period)
-
-    const today = new Date()
-    let startDate: string | undefined
-    let endDate: string | undefined
-
-    const formatDate = (date: Date): string => {
-      return date.toISOString().split('T')[0]
-    }
-
-    switch (period) {
-      case "today":
-        startDate = formatDate(today)
-        endDate = formatDate(today)
-        break
-
-      case "week":
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekStart.getDate() + 6)
-        startDate = formatDate(weekStart)
-        endDate = formatDate(weekEnd)
-        break
-
-      case "month":
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-        startDate = formatDate(monthStart)
-        endDate = formatDate(monthEnd)
-        break
-
-      case "all":
-        startDate = undefined
-        endDate = undefined
-        break
-
-      case "custom":
-        return
-    }
-
-    setDateFilter({
-      period: period as DateFilterType["period"],
-      startDate,
-      endDate,
-      paymentMethod: paymentMethodFilter !== "all" ? paymentMethodFilter as any : undefined
-    })
-  }
-
-  const handleCustomDateApply = () => {
-    if (customStartDate && customEndDate) {
-      setDateFilter({
-        period: "custom",
-        startDate: customStartDate,
-        endDate: customEndDate,
-        paymentMethod: paymentMethodFilter !== "all" ? paymentMethodFilter as any : undefined
-      })
-    }
+  const handlePeriodFilterChange = (filter: PeriodFilterType) => {
+    setPeriodFilter(filter)
   }
 
   const handlePaymentMethodChange = (method: string) => {
     setPaymentMethodFilter(method)
-    setDateFilter({
-      ...dateFilter,
-      paymentMethod: method !== "all" ? method as any : undefined
-    })
   }
 
   useEffect(() => {
     let filtered = transactions
 
-    if (dateFilter.startDate && dateFilter.endDate) {
-      const startDate = new Date(dateFilter.startDate + 'T00:00:00')
-      const endDate = new Date(dateFilter.endDate + 'T23:59:59')
+    // Filtro de data
+    if (periodFilter.startDate && periodFilter.endDate) {
+      const [startYear, startMonth, startDay] = periodFilter.startDate.split('-').map(Number)
+      const [endYear, endMonth, endDay] = periodFilter.endDate.split('-').map(Number)
 
-      filtered = transactions.filter(transaction => {
-        const transactionDate = new Date(transaction.date)
-        const transactionDateOnly = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), transactionDate.getDate())
-        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-        const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+      const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
+      const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
 
-        return transactionDateOnly >= startDateOnly && transactionDateOnly <= endDateOnly
+      filtered = filtered.filter(transaction => {
+        let transactionDate: Date
+
+        if (transaction.date instanceof Date) {
+          transactionDate = new Date(
+            transaction.date.getFullYear(),
+            transaction.date.getMonth(),
+            transaction.date.getDate(),
+            0, 0, 0, 0
+          )
+        } else {
+          const dateStr = String(transaction.date).split('T')[0]
+          const [year, month, day] = dateStr.split('-').map(Number)
+          transactionDate = new Date(year, month - 1, day, 0, 0, 0, 0)
+        }
+
+        return transactionDate >= startDate && transactionDate <= endDate
       })
     }
 
-    if (dateFilter.paymentMethod) {
+    // Filtro de forma de pagamento
+    if (paymentMethodFilter !== "all") {
       filtered = filtered.filter(transaction =>
-        transaction.paymentMethod === dateFilter.paymentMethod
+        transaction.paymentMethod === paymentMethodFilter
       )
     }
 
+    // Filtro de categoria
     if (categoryFilter !== "all") {
       filtered = filtered.filter(transaction =>
         transaction.category === categoryFilter
@@ -147,15 +102,14 @@ export function TransactionList({ type }: TransactionListProps) {
     }
 
     setFilteredTransactions(filtered)
-  }, [transactions, dateFilter, categoryFilter])
+  }, [transactions, periodFilter, paymentMethodFilter, categoryFilter])
 
   useEffect(() => {
     loadTransactions()
   }, [type])
 
   useEffect(() => {
-    // Inicializar filtro para o dia atual
-    handlePeriodChange("today")
+    // Inicializar com filtro do dia atual já está no useState
   }, [])
 
   const handleSuccess = () => {
@@ -255,8 +209,25 @@ export function TransactionList({ type }: TransactionListProps) {
       impostos: "bg-pink-100 text-pink-800",
       marketing: "bg-indigo-100 text-indigo-800",
       outros: "bg-slate-100 text-slate-800",
+      compras: "bg-slate-100 text-slate-800",
     }
     return colors[category] || "bg-gray-100 text-gray-800"
+  }
+
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      vendas: "Vendas",
+      servicos: "Serviços",
+      investimentos: "Investimentos",
+      emprestimos: "Empréstimos",
+      fornecedores: "Fornecedores",
+      salarios: "Salários",
+      aluguel: "Aluguel",
+      impostos: "Impostos",
+      marketing: "Marketing",
+      outros: "Outros",
+    }
+    return labels[category] || category.charAt(0).toUpperCase() + category.slice(1)
   }
 
   // ✅ MODIFICADO: Calcular total usando amount_received
@@ -289,72 +260,54 @@ export function TransactionList({ type }: TransactionListProps) {
   const TransactionsList = () => (
     <>
       <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-wrap items-center gap-3">
+        <CardContent className="pt-4 md:pt-6">
+          <div className="flex flex-col gap-3 md:gap-4">
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="font-semibold text-sm">Filtros:</span>
+              <Filter className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+              <span className="text-sm md:text-base font-medium">Filtros:</span>
             </div>
-            <select
-              className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
-              value={periodFilter}
-              onChange={(e) => handlePeriodChange(e.target.value)}
-            >
-              <option value="all">Todos Períodos</option>
-              <option value="today">Hoje</option>
-              <option value="week">Esta Semana</option>
-              <option value="month">Este Mês</option>
-              <option value="custom">Personalizado</option>
-            </select>
-            {periodFilter === "custom" && (
-              <>
-                <input
-                  type="date"
-                  className="px-3 py-1.5 border rounded-md text-sm"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  placeholder="Data inicial"
+
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-muted-foreground font-medium">Período:</span>
+                <DatePeriodFilter
+                  onFilterChange={handlePeriodFilterChange}
+                  currentFilter={periodFilter}
                 />
-                <input
-                  type="date"
-                  className="px-3 py-1.5 border rounded-md text-sm"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  placeholder="Data final"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleCustomDateApply}
-                  disabled={!customStartDate || !customEndDate}
-                >
-                  Aplicar
-                </Button>
-              </>
-            )}
-            <select
-              className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
-              value={paymentMethodFilter}
-              onChange={(e) => handlePaymentMethodChange(e.target.value)}
-            >
-              <option value="all">Todas Formas</option>
-              {CashFlowService.getPaymentMethodOptions().map((method) => (
-                <option key={method.value} value={method.value}>
-                  {method.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className="px-3 py-1.5 border rounded-md text-sm min-w-[140px]"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="all">Todas Categorias</option>
-              {CashFlowService.getCategoryOptions(type).map((category) => (
-                <option key={category} value={category}>
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </option>
-              ))}
-            </select>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Select value={paymentMethodFilter} onValueChange={handlePaymentMethodChange}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Forma de Pagamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas Formas</SelectItem>
+                    {CashFlowService.getPaymentMethodOptions().map((method) => (
+                      <SelectItem key={method.value} value={method.value}>
+                        {method.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {type === "exit" && (
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas Categorias</SelectItem>
+                      {CashFlowService.getCategoryOptions(type).map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {getCategoryLabel(category)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

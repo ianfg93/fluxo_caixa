@@ -41,14 +41,32 @@ export function CardReceivables() {
 
     // Apply date filter on settlement date (when money will be received)
     if (dateFilter.startDate && dateFilter.endDate) {
-      const startDate = new Date(dateFilter.startDate)
-      const endDate = new Date(dateFilter.endDate)
-      startDate.setHours(0, 0, 0, 0)
-      endDate.setHours(23, 59, 59, 999)
+      const [startYear, startMonth, startDay] = dateFilter.startDate.split('-').map(Number)
+      const [endYear, endMonth, endDay] = dateFilter.endDate.split('-').map(Number)
+
+      const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
+      const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
+
 
       filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.settlementDate)
-        return itemDate >= startDate && itemDate <= endDate
+        let itemDate: Date
+
+        if (item.settlementDate instanceof Date) {
+          itemDate = new Date(
+            item.settlementDate.getFullYear(),
+            item.settlementDate.getMonth(),
+            item.settlementDate.getDate(),
+            0, 0, 0, 0
+          )
+        } else {
+          const itemDateStr = String(item.settlementDate).split('T')[0]
+          const [itemYear, itemMonth, itemDay] = itemDateStr.split('-').map(Number)
+          itemDate = new Date(itemYear, itemMonth - 1, itemDay, 0, 0, 0, 0)
+        }
+
+        const isInRange = itemDate >= startDate && itemDate <= endDate
+
+        return isInRange
       })
     }
 
