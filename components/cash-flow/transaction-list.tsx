@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,18 @@ interface TransactionListProps {
   type: TransactionType
 }
 
+// Helper function to get today's date in Brazil timezone
+function getTodayBrazil(): string {
+  const now = new Date()
+  const brazilDate = new Date(now.toLocaleString('en-US', {
+    timeZone: 'America/Sao_Paulo'
+  }))
+  const year = brazilDate.getFullYear()
+  const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
+  const day = String(brazilDate.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function TransactionList({ type }: TransactionListProps) {
   const [transactions, setTransactions] = useState<CashFlowTransaction[]>([])
   const [filteredTransactions, setFilteredTransactions] = useState<CashFlowTransaction[]>([])
@@ -30,11 +42,21 @@ export function TransactionList({ type }: TransactionListProps) {
   const [editingTransaction, setEditingTransaction] = useState<CashFlowTransaction | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<OpenOrder | null>(null)
   const [loading, setLoading] = useState(true)
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilterType>({ period: "today" })
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilterType>({ period: "today", startDate: "", endDate: "" })
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const { authState } = useAuth()
   const { count: openOrdersCount } = useOpenOrdersCount()
+  const initialFilterSet = useRef(false)
+
+  // Set initial filter on mount (client-side only)
+  useEffect(() => {
+    if (!initialFilterSet.current) {
+      initialFilterSet.current = true
+      const today = getTodayBrazil()
+      setPeriodFilter({ period: "today", startDate: today, endDate: today })
+    }
+  }, [])
 
   const loadTransactions = async () => {
     try {
@@ -57,35 +79,38 @@ export function TransactionList({ type }: TransactionListProps) {
   }
 
   useEffect(() => {
+    // Don't apply filters until initial filter is set
+    if (!periodFilter.startDate || !periodFilter.endDate) {
+      return
+    }
+
     let filtered = transactions
 
     // Filtro de data
-    if (periodFilter.startDate && periodFilter.endDate) {
-      const [startYear, startMonth, startDay] = periodFilter.startDate.split('-').map(Number)
-      const [endYear, endMonth, endDay] = periodFilter.endDate.split('-').map(Number)
+    const [startYear, startMonth, startDay] = periodFilter.startDate.split('-').map(Number)
+    const [endYear, endMonth, endDay] = periodFilter.endDate.split('-').map(Number)
 
-      const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
-      const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
+    const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
+    const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
 
-      filtered = filtered.filter(transaction => {
-        let transactionDate: Date
+    filtered = filtered.filter(transaction => {
+      let transactionDate: Date
 
-        if (transaction.date instanceof Date) {
-          transactionDate = new Date(
-            transaction.date.getFullYear(),
-            transaction.date.getMonth(),
-            transaction.date.getDate(),
-            0, 0, 0, 0
-          )
-        } else {
-          const dateStr = String(transaction.date).split('T')[0]
-          const [year, month, day] = dateStr.split('-').map(Number)
-          transactionDate = new Date(year, month - 1, day, 0, 0, 0, 0)
-        }
+      if (transaction.date instanceof Date) {
+        transactionDate = new Date(
+          transaction.date.getFullYear(),
+          transaction.date.getMonth(),
+          transaction.date.getDate(),
+          0, 0, 0, 0
+        )
+      } else {
+        const dateStr = String(transaction.date).split('T')[0]
+        const [year, month, day] = dateStr.split('-').map(Number)
+        transactionDate = new Date(year, month - 1, day, 0, 0, 0, 0)
+      }
 
-        return transactionDate >= startDate && transactionDate <= endDate
-      })
-    }
+      return transactionDate >= startDate && transactionDate <= endDate
+    })
 
     // Filtro de forma de pagamento
     if (paymentMethodFilter !== "all") {
@@ -107,10 +132,6 @@ export function TransactionList({ type }: TransactionListProps) {
   useEffect(() => {
     loadTransactions()
   }, [type])
-
-  useEffect(() => {
-    // Inicializar com filtro do dia atual já está no useState
-  }, [])
 
   const handleSuccess = () => {
     loadTransactions()
@@ -480,8 +501,8 @@ export function TransactionList({ type }: TransactionListProps) {
           <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-green-600 flex-shrink-0" />
           <div>
             <h1 className="text-xl md:text-2xl font-bold">Entradas</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Gerencie as vendas e comandas do estabelecimento
+            <p className="text-xs md:Gerencie as vendas e comandas do estabelecimentotext-sm text-muted-foreground">
+              
             </p>
           </div>
         </div>

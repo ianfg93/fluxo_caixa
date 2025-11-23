@@ -40,7 +40,314 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
   }
 
   const handlePrint = () => {
-    window.print()
+    if (!report) return
+
+    const { cashSession, summary, exits, withdrawals } = report
+    // Calcular saídas pagas em dinheiro
+    const exitsCashTotal = exits
+      .filter((exit: any) => exit.paymentMethod === 'dinheiro')
+      .reduce((sum: number, exit: any) => sum + exit.amount, 0)
+    const cashInHand = summary.openingAmount + (summary.paymentTotals.dinheiro || 0) - (summary.totalWithdrawals || 0) - exitsCashTotal
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatório de Caixa - ${formatDate(selectedDate)}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            font-size: 12px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          .header h1 { font-size: 18px; margin-bottom: 5px; }
+          .header p { color: #666; font-size: 11px; }
+          .section { margin-bottom: 20px; }
+          .section-title {
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            color: #444;
+          }
+          .info-grid { display: flex; gap: 20px; margin-bottom: 10px; }
+          .info-item { flex: 1; }
+          .info-label { font-size: 10px; color: #666; margin-bottom: 2px; }
+          .info-value { font-size: 12px; font-weight: bold; }
+          .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .summary-box {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+          }
+          .summary-box.blue { background: #e3f2fd; border-color: #90caf9; }
+          .summary-box.green { background: #e8f5e9; border-color: #a5d6a7; }
+          .summary-box.red { background: #ffebee; border-color: #ef9a9a; }
+          .summary-box.orange { background: #fff3e0; border-color: #ffcc80; }
+          .summary-label { font-size: 10px; color: #666; margin-bottom: 3px; }
+          .summary-value { font-size: 16px; font-weight: bold; }
+          .summary-value.green { color: #2e7d32; }
+          .summary-value.red { color: #c62828; }
+          .summary-value.orange { color: #e65100; }
+          .final-balance {
+            background: #263238;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+          }
+          .final-balance .label { font-size: 12px; }
+          .final-balance .value { font-size: 22px; font-weight: bold; }
+          .cash-expected {
+            background: #2e7d32;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+          }
+          .payment-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
+          .payment-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+          .payment-box {
+            border: 1px solid #a5d6a7;
+            background: #e8f5e9;
+            padding: 8px;
+            border-radius: 4px;
+          }
+          .movement-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          .movement-table th, .movement-table td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: left;
+          }
+          .movement-table th { background: #f5f5f5; font-weight: bold; }
+          .movement-table .amount { text-align: right; font-weight: bold; }
+          .movement-table .amount.red { color: #c62828; }
+          .movement-table .amount.orange { color: #e65100; }
+          .closing-section {
+            border: 2px solid #ddd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+          }
+          .closing-section.ok { background: #e8f5e9; border-color: #4caf50; }
+          .closing-section.over { background: #e3f2fd; border-color: #2196f3; }
+          .closing-section.under { background: #fff3e0; border-color: #ff9800; }
+          .closing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+          .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+          }
+          .badge.open { background: #4caf50; color: white; }
+          .badge.closed { background: #9e9e9e; color: white; }
+          .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+          }
+          @media print {
+            body { padding: 10px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Relatório de Caixa</h1>
+          <p>${formatDate(selectedDate)}</p>
+          ${cashSession ? `<span class="badge ${cashSession.status}">${cashSession.status === 'open' ? 'Caixa Aberto' : 'Caixa Fechado'}</span>` : ''}
+        </div>
+
+        ${cashSession ? `
+        <div class="section">
+          <div class="section-title">Informações do Caixa</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Abertura</div>
+              <div class="info-value">${formatTime(cashSession.openingTime)} - ${cashSession.openedBy}</div>
+            </div>
+            ${cashSession.closingTime ? `
+            <div class="info-item">
+              <div class="info-label">Fechamento</div>
+              <div class="info-value">${formatTime(cashSession.closingTime)} - ${cashSession.closedBy}</div>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">Resumo Financeiro</div>
+          <div class="summary-grid">
+            <div class="summary-box blue">
+              <div class="summary-label">Valor de Abertura</div>
+              <div class="summary-value">${formatCurrency(summary.openingAmount)}</div>
+            </div>
+            <div class="summary-box green">
+              <div class="summary-label">Total de Vendas</div>
+              <div class="summary-value green">+${formatCurrency(summary.totalEntries)}</div>
+            </div>
+            <div class="summary-box red">
+              <div class="summary-label">Total de Saídas</div>
+              <div class="summary-value red">-${formatCurrency(summary.totalExits)}</div>
+            </div>
+            <div class="summary-box orange">
+              <div class="summary-label">Total de Sangrias</div>
+              <div class="summary-value orange">-${formatCurrency(summary.totalWithdrawals || 0)}</div>
+            </div>
+          </div>
+          <div class="final-balance">
+            <span class="label">Saldo Final do Caixa</span>
+            <span class="value">${formatCurrency(summary.finalBalance)}</span>
+          </div>
+        </div>
+
+        ${cashSession?.status === 'closed' && cashSession.difference !== undefined ? `
+        <div class="section">
+          <div class="section-title">Conferência de Fechamento</div>
+          <div class="closing-section ${Math.abs(cashSession.difference) < 0.01 ? 'ok' : cashSession.difference > 0 ? 'over' : 'under'}">
+            <div class="closing-grid">
+              <div>
+                <div class="info-label">Valor Esperado</div>
+                <div class="info-value">${formatCurrency(cashSession.expectedAmount || 0)}</div>
+              </div>
+              <div>
+                <div class="info-label">Valor Contado</div>
+                <div class="info-value">${formatCurrency(cashSession.closingAmount || 0)}</div>
+              </div>
+              <div style="text-align: right;">
+                <div class="info-label">${Math.abs(cashSession.difference) < 0.01 ? 'Conferido' : cashSession.difference > 0 ? 'Sobra' : 'Falta'}</div>
+                <div class="info-value" style="color: ${Math.abs(cashSession.difference) < 0.01 ? '#2e7d32' : cashSession.difference > 0 ? '#1565c0' : '#e65100'}">
+                  ${cashSession.difference > 0 ? '+' : ''}${formatCurrency(cashSession.difference)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">Vendas por Forma de Pagamento</div>
+          <div class="payment-grid">
+            <div class="payment-box">
+              <div class="summary-label">Dinheiro</div>
+              <div class="summary-value">${formatCurrency(summary.paymentTotals.dinheiro || 0)}</div>
+            </div>
+            <div class="payment-box">
+              <div class="summary-label">PIX</div>
+              <div class="summary-value">${formatCurrency(summary.paymentTotals.pix || 0)}</div>
+            </div>
+            <div class="payment-box">
+              <div class="summary-label">A Prazo</div>
+              <div class="summary-value">${formatCurrency(summary.paymentTotals.a_prazo || 0)}</div>
+            </div>
+          </div>
+          <div class="payment-grid-2">
+            <div class="payment-box">
+              <div class="summary-label">Crédito</div>
+              <div class="summary-value">${formatCurrency(summary.paymentTotals.credito || 0)}</div>
+            </div>
+            <div class="payment-box">
+              <div class="summary-label">Débito</div>
+              <div class="summary-value">${formatCurrency(summary.paymentTotals.debito || 0)}</div>
+            </div>
+          </div>
+          <div class="cash-expected">
+            <span class="label">Dinheiro Esperado no Caixa</span>
+            <span class="value">${formatCurrency(cashInHand)}</span>
+          </div>
+        </div>
+
+        ${exits.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Saídas (${exits.length})</div>
+          <table class="movement-table">
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Horário</th>
+                <th>Responsável</th>
+                <th style="text-align: right;">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${exits.map((exit: any) => `
+              <tr>
+                <td>${exit.description}</td>
+                <td>${formatTime(exit.createdAt)}</td>
+                <td>${exit.createdBy}</td>
+                <td class="amount red">-${formatCurrency(exit.amount)}</td>
+              </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        ${withdrawals.length > 0 ? `
+        <div class="section">
+          <div class="section-title">Sangrias (${withdrawals.length})</div>
+          <table class="movement-table">
+            <thead>
+              <tr>
+                <th>Motivo</th>
+                <th>Observações</th>
+                <th>Horário</th>
+                <th>Responsável</th>
+                <th style="text-align: right;">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${withdrawals.map((withdrawal: any) => `
+              <tr>
+                <td>${withdrawal.reason}</td>
+                <td>${withdrawal.notes || '-'}</td>
+                <td>${formatTime(withdrawal.withdrawalTime)}</td>
+                <td>${withdrawal.withdrawnBy}</td>
+                <td class="amount orange">-${formatCurrency(withdrawal.amount)}</td>
+              </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        <div class="footer">
+          Relatório gerado em ${new Date().toLocaleString('pt-BR')}
+        </div>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.onload = () => {
+      printWindow.print()
+    }
   }
 
   const formatCurrency = (value: number) => {
@@ -79,7 +386,11 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
   const { cashSession, summary, exits, withdrawals } = report
 
   // Calcular valor esperado em dinheiro físico
-  const cashInHand = summary.openingAmount + (summary.paymentTotals.dinheiro || 0) - (summary.totalWithdrawals || 0)
+  // Considera: abertura + entradas em dinheiro - sangrias - saídas pagas em dinheiro
+  const exitsCashTotal = exits
+    .filter((exit: any) => exit.paymentMethod === 'dinheiro')
+    .reduce((sum: number, exit: any) => sum + exit.amount, 0)
+  const cashInHand = summary.openingAmount + (summary.paymentTotals.dinheiro || 0) - (summary.totalWithdrawals || 0) - exitsCashTotal
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

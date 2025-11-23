@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { CardReceivablesService, type CardReceivable } from "@/lib/card-receivables"
 import { Settings as SettingsIcon, CreditCard, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,11 +10,33 @@ import { ReceivablesList } from "./receivables-list"
 import { SettingsForm } from "./settings-form"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+// Helper function to get today's date in Brazil timezone
+function getTodayBrazil(): string {
+  const now = new Date()
+  const brazilDate = new Date(now.toLocaleString('en-US', {
+    timeZone: 'America/Sao_Paulo'
+  }))
+  const year = brazilDate.getFullYear()
+  const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
+  const day = String(brazilDate.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function CardReceivables() {
   const [receivables, setReceivables] = useState<CardReceivable[]>([])
   const [filteredReceivables, setFilteredReceivables] = useState<CardReceivable[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dateFilter, setDateFilter] = useState<DateFilter>({ startDate: "", endDate: "" })
+  const initialFilterSet = useRef(false)
+
+  // Set initial filter on mount (client-side only)
+  useEffect(() => {
+    if (!initialFilterSet.current) {
+      initialFilterSet.current = true
+      const today = getTodayBrazil()
+      setDateFilter({ startDate: today, endDate: today })
+    }
+  }, [])
 
   useEffect(() => {
     loadReceivables()
@@ -37,38 +59,40 @@ export function CardReceivables() {
   }
 
   const applyFilters = () => {
+    // Don't apply filters until initial filter is set
+    if (!dateFilter.startDate || !dateFilter.endDate) {
+      return
+    }
+
     let filtered = receivables
 
     // Apply date filter on settlement date (when money will be received)
-    if (dateFilter.startDate && dateFilter.endDate) {
-      const [startYear, startMonth, startDay] = dateFilter.startDate.split('-').map(Number)
-      const [endYear, endMonth, endDay] = dateFilter.endDate.split('-').map(Number)
+    const [startYear, startMonth, startDay] = dateFilter.startDate.split('-').map(Number)
+    const [endYear, endMonth, endDay] = dateFilter.endDate.split('-').map(Number)
 
-      const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
-      const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
+    const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
+    const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
 
+    filtered = filtered.filter((item) => {
+      let itemDate: Date
 
-      filtered = filtered.filter((item) => {
-        let itemDate: Date
+      if (item.settlementDate instanceof Date) {
+        itemDate = new Date(
+          item.settlementDate.getFullYear(),
+          item.settlementDate.getMonth(),
+          item.settlementDate.getDate(),
+          0, 0, 0, 0
+        )
+      } else {
+        const itemDateStr = String(item.settlementDate).split('T')[0]
+        const [itemYear, itemMonth, itemDay] = itemDateStr.split('-').map(Number)
+        itemDate = new Date(itemYear, itemMonth - 1, itemDay, 0, 0, 0, 0)
+      }
 
-        if (item.settlementDate instanceof Date) {
-          itemDate = new Date(
-            item.settlementDate.getFullYear(),
-            item.settlementDate.getMonth(),
-            item.settlementDate.getDate(),
-            0, 0, 0, 0
-          )
-        } else {
-          const itemDateStr = String(item.settlementDate).split('T')[0]
-          const [itemYear, itemMonth, itemDay] = itemDateStr.split('-').map(Number)
-          itemDate = new Date(itemYear, itemMonth - 1, itemDay, 0, 0, 0, 0)
-        }
+      const isInRange = itemDate >= startDate && itemDate <= endDate
 
-        const isInRange = itemDate >= startDate && itemDate <= endDate
-
-        return isInRange
-      })
-    }
+      return isInRange
+    })
 
     setFilteredReceivables(filtered)
   }

@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Filter } from "lucide-react"
 import { DatePeriodFilter, type DatePeriodFilter as DateFilterType } from "@/components/ui/date-period-filter"
@@ -21,22 +20,6 @@ export function Filters({ onFilterChange }: FiltersProps) {
       endDate: filter.endDate || ""
     })
   }
-
-  // Apply initial filter on mount
-  useEffect(() => {
-    // Converte para o timezone de Brasília
-    const now = new Date()
-    const brazilDate = new Date(now.toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo'
-    }))
-
-    const year = brazilDate.getFullYear()
-    const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
-    const day = String(brazilDate.getDate()).padStart(2, '0')
-    const today = `${year}-${month}-${day}`
-
-    onFilterChange({ startDate: today, endDate: today })
-  }, [])
 
   return (
     <Card>
