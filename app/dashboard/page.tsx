@@ -15,6 +15,7 @@ import { CardReceivablesWidget } from "@/components/dashboard/card-receivables-w
 import { CardReceivablesChart } from "@/components/dashboard/card-receivables-chart"
 import { OpenRegisterDialog } from "@/components/cash-register/open-register-dialog"
 import { DailyReportDialog } from "@/components/cash-register/daily-report-dialog"
+import { PeriodReportDialog } from "@/components/cash-register/period-report-dialog"
 import { WithdrawalDialog } from "@/components/cash-register/withdrawal-dialog"
 import { CloseRegisterDialog } from "@/components/cash-register/close-register-dialog"
 import { CashRegisterAlert } from "@/components/cash-register/cash-register-alert"
@@ -48,6 +49,7 @@ export default function DashboardPage() {
   // Estados para controle dos diálogos de caixa
   const [openRegisterDialogOpen, setOpenRegisterDialogOpen] = useState(false)
   const [dailyReportDialogOpen, setDailyReportDialogOpen] = useState(false)
+  const [periodReportDialogOpen, setPeriodReportDialogOpen] = useState(false)
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false)
   const [closeRegisterDialogOpen, setCloseRegisterDialogOpen] = useState(false)
   const [cashRegisterStatus, setCashRegisterStatus] = useState<'open' | 'closed' | 'none'>('none')
@@ -399,6 +401,16 @@ export default function DashboardPage() {
             <FileText className="h-4 w-4" />
             Relatório Diário
           </Button>
+
+          <Button
+            onClick={() => setPeriodReportDialogOpen(true)}
+            variant="outline"
+            size="sm"
+            className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            <CalendarIcon className="h-4 w-4" />
+            Relatório por Período
+          </Button>
         </div>
       </div>
 
@@ -424,6 +436,10 @@ export default function DashboardPage() {
         open={dailyReportDialogOpen}
         onOpenChange={setDailyReportDialogOpen}
         onCloseRegister={() => setCloseRegisterDialogOpen(true)}
+      />
+      <PeriodReportDialog
+        open={periodReportDialogOpen}
+        onOpenChange={setPeriodReportDialogOpen}
       />
 
       {/* Aviso de Caixa Fechado */}

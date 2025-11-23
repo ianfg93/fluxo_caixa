@@ -50,6 +50,38 @@ export interface DailyReport {
   }
 }
 
+export interface PeriodReportSummary {
+  totalOpeningAmount: number
+  totalClosingAmount: number
+  totalDifference: number
+  totalEntries: number
+  totalExits: number
+  totalWithdrawals: number
+  netBalance: number
+  cashInHand: number
+  paymentTotals: Record<string, number>
+  daysWithSessions: number
+  daysOpen: number
+  daysClosed: number
+}
+
+export interface PeriodReport {
+  startDate: string
+  endDate: string
+  sessions: CashRegisterSession[]
+  summary: PeriodReportSummary
+  dailyData: { date: string; entries: number; exits: number; withdrawals: number }[]
+  entries: any[]
+  exits: any[]
+  withdrawals: CashWithdrawal[]
+  statistics: {
+    totalTransactions: number
+    averageTicket: number
+    averageDailyEntries: number
+    averageDailyExits: number
+  }
+}
+
 export class CashRegisterService {
   static async getSessions(status?: 'open' | 'closed', date?: string): Promise<CashRegisterSession[]> {
     try {
@@ -211,6 +243,24 @@ export class CashRegisterService {
     } catch (error) {
       console.error('Register withdrawal error:', error)
       throw error
+    }
+  }
+
+  static async getPeriodReport(startDate: string, endDate: string): Promise<PeriodReport | null> {
+    try {
+      const url = `/api/cash-register/period-report?startDate=${startDate}&endDate=${endDate}`
+
+      const response = await ApiClient.get(url)
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch period report')
+      }
+
+      const data = await response.json()
+      return data.report
+    } catch (error) {
+      console.error('Get period report error:', error)
+      return null
     }
   }
 }
