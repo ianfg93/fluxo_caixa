@@ -1,7 +1,13 @@
 "use client"
 
-import { useState, useEffect, createContext, useContext, type ReactNode } from "react"
+import { useState, useEffect, createContext, useContext, useCallback, type ReactNode } from "react"
 import { AuthService, type AuthState, type UserRole, type User } from "@/lib/auth"
+import { useInactivityTimeout } from "./use-inactivity-timeout"
+import { InactivityWarningDialog } from "@/components/inactivity-warning-dialog"
+
+// Configuracao de tempo de inatividade (em milissegundos)
+const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutos
+const WARNING_BEFORE_TIMEOUT_MS = 60 * 1000 // Aviso 60 segundos antes
 
 const AuthContext = createContext<{
   authState: AuthState
@@ -36,10 +42,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return false
   }
 
-  const logout = () => {
+  const logout = useCallback(() => {
     AuthService.logout()
     setAuthState({ user: null, isAuthenticated: false })
-  }
+  }, [])
+
+  // Hook de inatividade - so ativo quando autenticado
+  const { showWarning, remainingTime, extendSession } = useInactivityTimeout({
+    timeoutMs: INACTIVITY_TIMEOUT_MS,
+    warningMs: WARNING_BEFORE_TIMEOUT_MS,
+    onTimeout: logout,
+    enabled: authState.isAuthenticated,
+  })
 
   const updateUserData = (updates: Partial<User>) => {
     if (authState.user) {
@@ -69,10 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      authState, 
-      login, 
-      logout, 
+    <AuthContext.Provider value={{
+      authState,
+      login,
+      logout,
       updateUserData,
       hasPermission,
       isMaster,
@@ -80,6 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       canManageUsers
     }}>
       {children}
+      <InactivityWarningDialog
+        open={showWarning}
+        remainingTime={remainingTime}
+        onExtendSession={extendSession}
+      />
     </AuthContext.Provider>
   )
 }
