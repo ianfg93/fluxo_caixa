@@ -106,7 +106,7 @@ export function CloseRegisterDialog({
                 <div>
                   <p className="text-sm font-medium text-blue-900">💵 Dinheiro Esperado no Caixa</p>
                   <p className="text-xs text-blue-700 mt-1">
-                    (Abertura + Vendas em Dinheiro - Sangrias)
+                    (Abertura + Vendas em Dinheiro - Sangrias - Saídas em Dinheiro)
                   </p>
                 </div>
                 <p className="text-2xl font-bold text-blue-600">{formatCurrency(expectedAmount)}</p>

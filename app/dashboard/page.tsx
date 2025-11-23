@@ -17,6 +17,7 @@ import { OpenRegisterDialog } from "@/components/cash-register/open-register-dia
 import { DailyReportDialog } from "@/components/cash-register/daily-report-dialog"
 import { WithdrawalDialog } from "@/components/cash-register/withdrawal-dialog"
 import { CloseRegisterDialog } from "@/components/cash-register/close-register-dialog"
+import { CashRegisterAlert } from "@/components/cash-register/cash-register-alert"
 import { ReportsService } from "@/lib/reports"
 import { CashFlowService } from "@/lib/cash-flow"
 import { CardReceivablesService } from "@/lib/card-receivables"
@@ -94,10 +95,15 @@ export default function DashboardPage() {
         // Buscar o relatório para calcular o valor esperado EM DINHEIRO FÍSICO
         const report = await CashRegisterService.getDailyReport(today)
         if (report) {
-          // Calcular apenas dinheiro físico: Abertura + Vendas em Dinheiro - Sangrias
+          // Calcular saídas pagas em dinheiro
+          const exitsCashTotal = report.exits
+            .filter((exit: any) => exit.paymentMethod === 'dinheiro')
+            .reduce((sum: number, exit: any) => sum + exit.amount, 0)
+          // Calcular apenas dinheiro físico: Abertura + Vendas em Dinheiro - Sangrias - Saídas em Dinheiro
           const cashInHand = report.summary.openingAmount +
                             (report.summary.paymentTotals.dinheiro || 0) -
-                            (report.summary.totalWithdrawals || 0)
+                            (report.summary.totalWithdrawals || 0) -
+                            exitsCashTotal
           setExpectedClosingAmount(cashInHand)
         }
       } else {
@@ -419,6 +425,11 @@ export default function DashboardPage() {
         onOpenChange={setDailyReportDialogOpen}
         onCloseRegister={() => setCloseRegisterDialogOpen(true)}
       />
+
+      {/* Aviso de Caixa Fechado */}
+      {cashRegisterStatus === 'none' && !loading && (
+        <CashRegisterAlert onOpenRegister={() => setOpenRegisterDialogOpen(true)} />
+      )}
 
       {/* Filtros */}
       <Card>

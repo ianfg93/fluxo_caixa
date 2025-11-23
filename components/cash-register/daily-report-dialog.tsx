@@ -49,9 +49,6 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
       .reduce((sum: number, exit: any) => sum + exit.amount, 0)
     const cashInHand = summary.openingAmount + (summary.paymentTotals.dinheiro || 0) - (summary.totalWithdrawals || 0) - exitsCashTotal
 
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
-
     const html = `
       <!DOCTYPE html>
       <html>
@@ -343,6 +340,9 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
       </html>
     `
 
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
     printWindow.document.write(html)
     printWindow.document.close()
     printWindow.onload = () => {
@@ -396,36 +396,36 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!w-[95vw] !max-w-[95vw] !h-[95vh] !max-h-[95vh] overflow-y-auto">
         {/* Cabeçalho */}
-        <DialogHeader className="space-y-4 pb-4">
-          <div className="flex items-center justify-between">
+        <DialogHeader className="space-y-3 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="bg-blue-100 p-2 rounded-lg">
-                <FileText className="h-6 w-6 text-blue-700" />
+                <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-blue-700" />
               </div>
               <div>
-                <DialogTitle className="text-2xl">Relatório de Caixa</DialogTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">
+                <DialogTitle className="text-lg sm:text-2xl">Relatório de Caixa</DialogTitle>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                   {formatDate(selectedDate)}
                 </p>
               </div>
             </div>
-            <Button onClick={handlePrint} variant="outline" size="sm">
+            <Button onClick={handlePrint} variant="outline" size="sm" className="w-full sm:w-auto">
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
             </Button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <Input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-48"
+              className="w-full sm:w-48"
             />
             {cashSession && (
               <>
-                <Separator orientation="vertical" className="h-6" />
+                <Separator orientation="vertical" className="h-6 hidden sm:block" />
                 <Badge variant={cashSession.status === 'open' ? 'default' : 'secondary'}>
                   {cashSession.status === 'open' ? 'Caixa Aberto' : 'Caixa Fechado'}
                 </Badge>
@@ -439,19 +439,19 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
         <div className="space-y-8 py-4">
           {/* Informações de Abertura */}
           {cashSession && (
-            <div className="bg-slate-50 rounded-lg p-5 space-y-3">
-              <h3 className="font-semibold text-sm text-slate-700 uppercase tracking-wide">Informações do Caixa</h3>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-50 rounded-lg p-4 sm:p-5 space-y-3">
+              <h3 className="font-semibold text-xs sm:text-sm text-slate-700 uppercase tracking-wide">Informações do Caixa</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Abertura</p>
-                  <p className="text-sm font-medium">
+                  <p className="text-xs sm:text-sm font-medium">
                     {formatTime(cashSession.openingTime)} - {cashSession.openedBy}
                   </p>
                 </div>
                 {cashSession.closingTime && (
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Fechamento</p>
-                    <p className="text-sm font-medium">
+                    <p className="text-xs sm:text-sm font-medium">
                       {formatTime(cashSession.closingTime)} - {cashSession.closedBy}
                     </p>
                   </div>
@@ -461,43 +461,43 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
           )}
 
           {/* Resumo Financeiro */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm text-slate-700 uppercase tracking-wide">Resumo Financeiro</h3>
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="font-semibold text-xs sm:text-sm text-slate-700 uppercase tracking-wide">Resumo Financeiro</h3>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               {/* Abertura */}
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-5">
-                <p className="text-xs font-medium text-blue-700 mb-2">Valor de Abertura</p>
-                <p className="text-3xl font-bold text-blue-900">{formatCurrency(summary.openingAmount)}</p>
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 sm:p-5">
+                <p className="text-[10px] sm:text-xs font-medium text-blue-700 mb-1 sm:mb-2">Valor de Abertura</p>
+                <p className="text-lg sm:text-3xl font-bold text-blue-900">{formatCurrency(summary.openingAmount)}</p>
               </div>
 
               {/* Vendas */}
-              <div className="bg-green-50 border-2 border-green-200 rounded-xl p-5">
-                <p className="text-xs font-medium text-green-700 mb-2">Total de Vendas</p>
-                <p className="text-3xl font-bold text-green-900">+{formatCurrency(summary.totalEntries)}</p>
+              <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 sm:p-5">
+                <p className="text-[10px] sm:text-xs font-medium text-green-700 mb-1 sm:mb-2">Total de Vendas</p>
+                <p className="text-lg sm:text-3xl font-bold text-green-900">+{formatCurrency(summary.totalEntries)}</p>
               </div>
 
               {/* Saídas */}
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-5">
-                <p className="text-xs font-medium text-red-700 mb-2">Total de Saídas</p>
-                <p className="text-3xl font-bold text-red-900">-{formatCurrency(summary.totalExits)}</p>
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 sm:p-5">
+                <p className="text-[10px] sm:text-xs font-medium text-red-700 mb-1 sm:mb-2">Total de Saídas</p>
+                <p className="text-lg sm:text-3xl font-bold text-red-900">-{formatCurrency(summary.totalExits)}</p>
               </div>
 
               {/* Sangrias */}
-              <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-5">
-                <p className="text-xs font-medium text-orange-700 mb-2">Total de Sangrias</p>
-                <p className="text-3xl font-bold text-orange-900">-{formatCurrency(summary.totalWithdrawals || 0)}</p>
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-3 sm:p-5">
+                <p className="text-[10px] sm:text-xs font-medium text-orange-700 mb-1 sm:mb-2">Total de Sangrias</p>
+                <p className="text-lg sm:text-3xl font-bold text-orange-900">-{formatCurrency(summary.totalWithdrawals || 0)}</p>
               </div>
             </div>
 
             {/* Saldo Final em Destaque */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-6 text-white">
-              <div className="flex items-center justify-between">
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl p-4 sm:p-6 text-white">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                 <div>
-                  <p className="text-sm opacity-90 mb-1">Saldo Final do Caixa</p>
+                  <p className="text-xs sm:text-sm opacity-90">Saldo Final do Caixa</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-4xl font-bold">{formatCurrency(summary.finalBalance)}</p>
+                <div className="sm:text-right">
+                  <p className="text-2xl sm:text-4xl font-bold">{formatCurrency(summary.finalBalance)}</p>
                 </div>
               </div>
             </div>
@@ -505,30 +505,30 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
 
           {/* Diferença de Fechamento */}
           {cashSession?.status === 'closed' && cashSession.difference !== undefined && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm text-slate-700 uppercase tracking-wide">Conferência de Fechamento</h3>
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="font-semibold text-xs sm:text-sm text-slate-700 uppercase tracking-wide">Conferência de Fechamento</h3>
 
-              <div className={`rounded-xl p-6 border-2 ${
+              <div className={`rounded-xl p-4 sm:p-6 border-2 ${
                 Math.abs(cashSession.difference) < 0.01
                   ? 'bg-green-50 border-green-300'
                   : cashSession.difference > 0
                   ? 'bg-blue-50 border-blue-300'
                   : 'bg-orange-50 border-orange-300'
               }`}>
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Valor Esperado</p>
-                    <p className="text-2xl font-bold">{formatCurrency(cashSession.expectedAmount || 0)}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Valor Esperado</p>
+                    <p className="text-base sm:text-2xl font-bold">{formatCurrency(cashSession.expectedAmount || 0)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Valor Contado</p>
-                    <p className="text-2xl font-bold">{formatCurrency(cashSession.closingAmount || 0)}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Valor Contado</p>
+                    <p className="text-base sm:text-2xl font-bold">{formatCurrency(cashSession.closingAmount || 0)}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground mb-1">
+                  <div className="col-span-2 sm:col-span-1 sm:text-right">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">
                       {Math.abs(cashSession.difference) < 0.01 ? 'Conferido' : cashSession.difference > 0 ? 'Sobra' : 'Falta'}
                     </p>
-                    <p className={`text-2xl font-bold ${
+                    <p className={`text-base sm:text-2xl font-bold ${
                       Math.abs(cashSession.difference) < 0.01
                         ? 'text-green-600'
                         : cashSession.difference > 0
@@ -544,132 +544,132 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
           )}
 
           {/* Vendas por Forma de Pagamento */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm text-slate-700 uppercase tracking-wide">Vendas por Forma de Pagamento</h3>
+          <div className="space-y-3 sm:space-y-4">
+            <h3 className="font-semibold text-xs sm:text-sm text-slate-700 uppercase tracking-wide">Vendas por Forma de Pagamento</h3>
 
             {/* Primeira linha: Dinheiro, PIX, A Prazo */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <p className="text-xs font-medium text-green-700">Dinheiro</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-4">
+                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                  <p className="text-[10px] sm:text-xs font-medium text-green-700">Dinheiro</p>
                 </div>
-                <p className="text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.dinheiro || 0)}</p>
+                <p className="text-sm sm:text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.dinheiro || 0)}</p>
               </div>
 
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <p className="text-xs font-medium text-green-700">PIX</p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-4">
+                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                  <p className="text-[10px] sm:text-xs font-medium text-green-700">PIX</p>
                 </div>
-                <p className="text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.pix || 0)}</p>
+                <p className="text-sm sm:text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.pix || 0)}</p>
               </div>
 
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <p className="text-xs font-medium text-green-700">A Prazo</p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-4">
+                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                  <p className="text-[10px] sm:text-xs font-medium text-green-700">A Prazo</p>
                 </div>
-                <p className="text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.a_prazo || 0)}</p>
+                <p className="text-sm sm:text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.a_prazo || 0)}</p>
               </div>
             </div>
 
             {/* Segunda linha: Crédito e Débito */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <p className="text-xs font-medium text-green-700">Crédito</p>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-4">
+                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                  <p className="text-[10px] sm:text-xs font-medium text-green-700">Crédito</p>
                 </div>
-                <p className="text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.credito || 0)}</p>
+                <p className="text-sm sm:text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.credito || 0)}</p>
               </div>
 
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                  <p className="text-xs font-medium text-green-700">Débito</p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-4">
+                <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" />
+                  <p className="text-[10px] sm:text-xs font-medium text-green-700">Débito</p>
                 </div>
-                <p className="text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.debito || 0)}</p>
+                <p className="text-sm sm:text-xl font-bold text-green-900">{formatCurrency(summary.paymentTotals.debito || 0)}</p>
               </div>
             </div>
           </div>
 
           {/* Indicador de Dinheiro Esperado em Caixa */}
-          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between">
+          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl p-4 sm:p-6 text-white shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
               <div>
-                <p className="text-sm opacity-90 mb-1 font-medium">Dinheiro Esperado no Caixa</p>
+                <p className="text-xs sm:text-sm opacity-90 font-medium">Dinheiro Esperado no Caixa</p>
               </div>
-              <div className="text-right">
-                <p className="text-4xl font-bold">{formatCurrency(cashInHand)}</p>
+              <div className="sm:text-right">
+                <p className="text-2xl sm:text-4xl font-bold">{formatCurrency(cashInHand)}</p>
               </div>
             </div>
           </div>
 
           {/* Saídas e Sangrias */}
           {(exits.length > 0 || withdrawals.length > 0) && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm text-slate-700 uppercase tracking-wide">Movimentações</h3>
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="font-semibold text-xs sm:text-sm text-slate-700 uppercase tracking-wide">Movimentações</h3>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Saídas */}
-                <div className="bg-slate-50 rounded-lg p-5 space-y-3">
+                <div className="bg-slate-50 rounded-lg p-3 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sm">Saídas</h4>
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                    <h4 className="font-semibold text-xs sm:text-sm">Saídas</h4>
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10px] sm:text-xs">
                       {exits.length}
                     </Badge>
                   </div>
 
                   {exits.length > 0 ? (
-                    <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto pr-1 sm:pr-2">
                       {exits.map((exit: any) => (
-                        <div key={exit.id} className="bg-white border border-slate-200 rounded-lg p-3">
-                          <div className="flex justify-between items-start mb-2">
-                            <p className="font-medium text-sm flex-1">{exit.description}</p>
-                            <p className="font-bold text-red-600 ml-3">{formatCurrency(exit.amount)}</p>
+                        <div key={exit.id} className="bg-white border border-slate-200 rounded-lg p-2 sm:p-3">
+                          <div className="flex justify-between items-start mb-1 sm:mb-2">
+                            <p className="font-medium text-xs sm:text-sm flex-1">{exit.description}</p>
+                            <p className="font-bold text-red-600 ml-2 sm:ml-3 text-xs sm:text-sm">{formatCurrency(exit.amount)}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
                             {formatTime(exit.createdAt)} • {exit.createdBy}
                           </p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-center text-muted-foreground py-6 text-sm">Nenhuma saída</p>
+                    <p className="text-center text-muted-foreground py-4 sm:py-6 text-xs sm:text-sm">Nenhuma saída</p>
                   )}
                 </div>
 
                 {/* Sangrias */}
-                <div className="bg-slate-50 rounded-lg p-5 space-y-3">
+                <div className="bg-slate-50 rounded-lg p-3 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sm">Sangrias</h4>
-                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                    <h4 className="font-semibold text-xs sm:text-sm">Sangrias</h4>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-[10px] sm:text-xs">
                       {withdrawals.length}
                     </Badge>
                   </div>
 
                   {withdrawals.length > 0 ? (
-                    <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                    <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto pr-1 sm:pr-2">
                       {withdrawals.map((withdrawal: any) => (
-                        <div key={withdrawal.id} className="bg-white border border-slate-200 rounded-lg p-3">
-                          <div className="flex justify-between items-start mb-2">
+                        <div key={withdrawal.id} className="bg-white border border-slate-200 rounded-lg p-2 sm:p-3">
+                          <div className="flex justify-between items-start mb-1 sm:mb-2">
                             <div className="flex-1">
-                              <p className="font-medium text-sm">{withdrawal.reason}</p>
+                              <p className="font-medium text-xs sm:text-sm">{withdrawal.reason}</p>
                               {withdrawal.notes && (
-                                <p className="text-xs text-muted-foreground mt-1">{withdrawal.notes}</p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">{withdrawal.notes}</p>
                               )}
                             </div>
-                            <p className="font-bold text-orange-600 ml-3">{formatCurrency(withdrawal.amount)}</p>
+                            <p className="font-bold text-orange-600 ml-2 sm:ml-3 text-xs sm:text-sm">{formatCurrency(withdrawal.amount)}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
                             {formatTime(withdrawal.withdrawalTime)} • {withdrawal.withdrawnBy}
                           </p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-center text-muted-foreground py-6 text-sm">Nenhuma sangria</p>
+                    <p className="text-center text-muted-foreground py-4 sm:py-6 text-xs sm:text-sm">Nenhuma sangria</p>
                   )}
                 </div>
               </div>
@@ -679,14 +679,14 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
           {/* Botão de Fechar Caixa */}
           {cashSession?.status === 'open' && onCloseRegister && (
             <div className="pt-4 border-t">
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
-                <div className="flex items-center justify-between">
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                   <div>
-                    <h3 className="font-semibold text-lg text-red-900 mb-1">Fechar Caixa do Dia</h3>
-                    <p className="text-sm text-red-700">
+                    <h3 className="font-semibold text-base sm:text-lg text-red-900 mb-1">Fechar Caixa do Dia</h3>
+                    <p className="text-xs sm:text-sm text-red-700">
                       O valor esperado em dinheiro no caixa é de <strong>{formatCurrency(cashInHand)}</strong>
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                       Conte o dinheiro físico e confirme o fechamento do caixa.
                     </p>
                   </div>
@@ -695,10 +695,10 @@ export function DailyReportDialog({ open, onOpenChange, onCloseRegister }: Daily
                       onCloseRegister()
                       onOpenChange(false)
                     }}
-                    size="lg"
-                    className="bg-red-600 hover:bg-red-700 text-white"
+                    size="default"
+                    className="bg-red-600 hover:bg-red-700 text-white w-full sm:w-auto"
                   >
-                    <DollarSign className="h-5 w-5 mr-2" />
+                    <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                     Fechar Caixa
                   </Button>
                 </div>
