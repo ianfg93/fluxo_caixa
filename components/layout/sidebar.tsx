@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package, Clock, Menu, X, FileText } from "lucide-react"
+import { LayoutDashboard, TrendingUp, TrendingDown, CreditCard, Users, Settings, LogOut, ChevronLeft, ChevronRight, Building2, Package, Clock, Menu, X, FileText, Calculator } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
@@ -16,6 +16,7 @@ const navigation = [
   { name: "Empresas", href: "/companies", icon: Building2, roles: ["master"] },
   { name: "Estoque", href: "/products", icon: Package, roles: ["master", "administrator"] },
   { name: "NF-e Entrada", href: "/nfe", icon: FileText, roles: ["master", "administrator"] },
+  { name: "Orçamentos", href: "/budgets", icon: Calculator, roles: ["master", "administrator", "operational"] },
   { name: "Entradas", href: "/cash-flow/entries", icon: TrendingUp, roles: ["administrator", "operational"] },
   { name: "Saídas", href: "/cash-flow/exits", icon: TrendingDown, roles: ["administrator", "operational"] },
   { name: "Contas a Pagar", href: "/accounts-payable", icon: CreditCard, roles: ["administrator"] },

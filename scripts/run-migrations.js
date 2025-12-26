@@ -65,7 +65,8 @@ async function runMigrations() {
       // "024_create_card_receivables.sql",
       // "025_add_payment_splits_to_cash_flow.sql",
       // "026_create_cash_register_table.sql",
-      // "027_create_cash_withdrawals_table.sql"
+      // "027_create_cash_withdrawals_table.sql",
+      "028_create_budgets_tables.sql"
     ]
 
     let executedCount = 0

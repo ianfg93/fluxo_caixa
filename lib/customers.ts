@@ -12,141 +12,106 @@ export interface Customer {
   createdBy: string
   createdAt: Date
   updatedAt: Date
-  // Campos calculados
+  // Campos opcionais para compatibilidade com componentes existentes
   totalDebt?: number
   totalPaid?: number
   balance?: number
 }
 
-export interface CustomerTransaction {
-  id: string
-  date: Date
-  type: 'sale' | 'payment'
-  description: string
-  amount: number
-  amountReceived: number
-  paymentMethod?: string
-  notes?: string
+export interface CreateCustomerDTO {
+  name: string
+  cpfCnpj?: string
+  phone?: string
+  email?: string
+  address?: string
 }
 
 export class CustomerService {
   static async getCustomers(activeOnly: boolean = true): Promise<Customer[]> {
     try {
-      const url = `/api/customers${activeOnly ? '?active=true' : ''}`
-      const response = await ApiClient.get(url)
+      const params = new URLSearchParams()
+      if (activeOnly) {
+        params.append('active', 'true')
+      }
+
+      const response = await ApiClient.get(`/api/customers?${params.toString()}`)
 
       if (!response.ok) {
-        throw new Error("Failed to fetch customers")
+        throw new Error('Erro ao buscar clientes')
       }
 
       const data = await response.json()
-
-      return data.customers.map((c: any) => ({
-        ...c,
-        createdAt: new Date(c.createdAt),
-        updatedAt: new Date(c.updatedAt),
-      }))
+      return data.customers || []
     } catch (error) {
-      console.error("Get customers error:", error)
-      return []
+      console.error('Erro ao buscar clientes:', error)
+      throw error
     }
   }
 
-  static async getCustomerById(id: string): Promise<Customer | null> {
+  static async getCustomer(id: string): Promise<Customer | null> {
     try {
       const response = await ApiClient.get(`/api/customers/${id}`)
 
       if (!response.ok) {
-        throw new Error("Failed to fetch customer")
+        if (response.status === 404) {
+          return null
+        }
+        throw new Error('Erro ao buscar cliente')
       }
 
       const data = await response.json()
-
-      return {
-        ...data.customer,
-        createdAt: new Date(data.customer.createdAt),
-        updatedAt: new Date(data.customer.updatedAt),
-      }
+      return data.customer
     } catch (error) {
-      console.error("Get customer error:", error)
-      return null
+      console.error('Erro ao buscar cliente:', error)
+      throw error
     }
   }
 
-  static async getCustomerTransactions(customerId: string): Promise<CustomerTransaction[]> {
+  static async createCustomer(customerData: CreateCustomerDTO): Promise<Customer> {
     try {
-      const response = await ApiClient.get(`/api/customers/${customerId}/transactions`)
+      const response = await ApiClient.post('/api/customers', customerData)
 
       if (!response.ok) {
-        throw new Error("Failed to fetch customer transactions")
+        const error = await response.json()
+        throw new Error(error.message || 'Erro ao criar cliente')
       }
 
       const data = await response.json()
-
-      return data.transactions.map((t: any) => ({
-        ...t,
-        date: new Date(t.date),
-      }))
+      return data.customer
     } catch (error) {
-      console.error("Get customer transactions error:", error)
-      return []
+      console.error('Erro ao criar cliente:', error)
+      throw error
     }
   }
 
-  static async addCustomer(
-    customer: Omit<Customer, "id" | "createdAt" | "updatedAt" | "createdBy" | "companyId" | "active">
-  ): Promise<Customer | null> {
+  static async updateCustomer(id: string, customerData: Partial<CreateCustomerDTO>): Promise<Customer> {
     try {
-      const response = await ApiClient.post("/api/customers", customer)
+      const response = await ApiClient.put(`/api/customers/${id}`, customerData)
 
       if (!response.ok) {
-        throw new Error("Failed to add customer")
+        const error = await response.json()
+        throw new Error(error.message || 'Erro ao atualizar cliente')
       }
 
       const data = await response.json()
-
-      return {
-        ...data.customer,
-        createdAt: new Date(data.customer.createdAt),
-        updatedAt: new Date(data.customer.updatedAt),
-      }
+      return data.customer
     } catch (error) {
-      console.error("Add customer error:", error)
-      return null
+      console.error('Erro ao atualizar cliente:', error)
+      throw error
     }
   }
 
-  static async updateCustomer(
-    id: string,
-    updates: Partial<Customer>
-  ): Promise<Customer | null> {
-    try {
-      const response = await ApiClient.put(`/api/customers/${id}`, updates)
-
-      if (!response.ok) {
-        throw new Error("Failed to update customer")
-      }
-
-      const data = await response.json()
-
-      return {
-        ...data.customer,
-        createdAt: new Date(data.customer.createdAt),
-        updatedAt: new Date(data.customer.updatedAt),
-      }
-    } catch (error) {
-      console.error("Update customer error:", error)
-      return null
-    }
-  }
-
-  static async deleteCustomer(id: string): Promise<boolean> {
+  static async deleteCustomer(id: string): Promise<void> {
     try {
       const response = await ApiClient.delete(`/api/customers/${id}`)
-      return response.ok
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Erro ao excluir cliente')
+      }
     } catch (error) {
-      console.error("Delete customer error:", error)
-      return false
+      console.error('Erro ao excluir cliente:', error)
+      throw error
     }
   }
 }

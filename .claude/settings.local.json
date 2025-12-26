@@ -14,7 +14,9 @@
       "Bash(findstr:*)",
       "Bash(npm run dev:*)",
       "Bash(npm run migrate:*)",
-      "Bash(npx next lint:*)"
+      "Bash(npx next lint:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
