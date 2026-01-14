@@ -40,7 +40,7 @@ async function runMigrations() {
     const migrationFiles = [
       // "000_drop_all_tables.sql",
       // "001_create_user_types_table.sql",
-      // "002_create_companies_table.sql", 
+      // "002_create_companies_table.sql",
       // "003_create_users_table.sql",
       // "004_create_cash_flow_table.sql",
       // "005_create_accounts_payable_table.sql",
@@ -65,7 +65,9 @@ async function runMigrations() {
       // "024_create_card_receivables.sql",
       // "025_add_payment_splits_to_cash_flow.sql",
       // "026_create_cash_register_table.sql",
-      // "027_create_cash_withdrawals_table.sql"
+      // "027_create_cash_withdrawals_table.sql",
+      "028_enable_rls_security_supabase.sql", // 🔒 CORREÇÃO URGENTE: Habilitar RLS
+      "029_fix_function_search_path.sql" // 🔒 CORREÇÃO: SQL Injection via search_path
     ]
 
     let executedCount = 0
