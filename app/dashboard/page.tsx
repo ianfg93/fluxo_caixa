@@ -43,8 +43,10 @@ export default function DashboardPage() {
   const [availableCompanies, setAvailableCompanies] = useState<any[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>("")
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>("day")
-  const [customDate, setCustomDate] = useState<Date>()
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [customStartDate, setCustomStartDate] = useState<Date>()
+  const [customEndDate, setCustomEndDate] = useState<Date>()
+  const [isStartCalendarOpen, setIsStartCalendarOpen] = useState(false)
+  const [isEndCalendarOpen, setIsEndCalendarOpen] = useState(false)
 
   // Estados para controle dos diálogos de caixa
   const [openRegisterDialogOpen, setOpenRegisterDialogOpen] = useState(false)
@@ -59,12 +61,19 @@ export default function DashboardPage() {
   const isMaster = authState.user?.role === 'master'
   const isAdmin = authState.user?.role === 'administrator' || isMaster
 
-  const handleDateSelect = (date: Date | undefined) => {
-    console.log('handleDateSelect chamado com:', date)
+  const handleStartDateSelect = (date: Date | undefined) => {
     if (date) {
-      setCustomDate(date)
+      setCustomStartDate(date)
       setSelectedPeriod("custom")
-      setIsCalendarOpen(false)
+      setIsStartCalendarOpen(false)
+    }
+  }
+
+  const handleEndDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setCustomEndDate(date)
+      setSelectedPeriod("custom")
+      setIsEndCalendarOpen(false)
     }
   }
 
@@ -74,7 +83,7 @@ export default function DashboardPage() {
     }
     loadDashboardData()
     checkCashRegisterStatus()
-  }, [selectedCompany, selectedPeriod, customDate])
+  }, [selectedCompany, selectedPeriod, customStartDate, customEndDate])
 
   async function checkCashRegisterStatus() {
     try {
@@ -148,8 +157,8 @@ export default function DashboardPage() {
   // Calcular data de início baseado no período selecionado
   function getStartDate(period: PeriodFilter): Date | undefined {
     // Se for data customizada, usar a data selecionada
-    if (period === "custom" && customDate) {
-      return new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate(), 0, 0, 0, 0)
+    if (period === "custom" && customStartDate) {
+      return new Date(customStartDate.getFullYear(), customStartDate.getMonth(), customStartDate.getDate(), 0, 0, 0, 0)
     }
 
     const now = new Date()
@@ -188,8 +197,8 @@ export default function DashboardPage() {
   // Calcular data de fim para períodos específicos
   function getEndDate(period: PeriodFilter): Date | undefined {
     // Se for data customizada, usar a data selecionada
-    if (period === "custom" && customDate) {
-      return new Date(customDate.getFullYear(), customDate.getMonth(), customDate.getDate(), 23, 59, 59, 999)
+    if (period === "custom" && customEndDate) {
+      return new Date(customEndDate.getFullYear(), customEndDate.getMonth(), customEndDate.getDate(), 23, 59, 59, 999)
     }
 
     const now = new Date()
@@ -235,15 +244,14 @@ export default function DashboardPage() {
         return "Todo o período"
 
       case "custom":
-        if (customDate) {
-          return customDate.toLocaleDateString("pt-BR", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric"
-          })
+        if (customStartDate && customEndDate) {
+          const start = customStartDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+          const end = customEndDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+          return `${start} até ${end}`
+        } else if (customStartDate) {
+          return customStartDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
         }
-        return "Data personalizada"
+        return "Período personalizado"
 
       default:
         return ""
@@ -498,27 +506,53 @@ export default function DashboardPage() {
                 Total
               </Button>
 
-              {/* Botão de Data Customizada com Calendário */}
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              {/* Botões de Período Personalizado - Data Início */}
+              <Popover open={isStartCalendarOpen} onOpenChange={setIsStartCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant={selectedPeriod === "custom" ? "default" : "outline"}
                     size="sm"
                     className={cn(
                       "text-xs md:text-sm justify-start text-left font-normal",
-                      !customDate && "text-muted-foreground"
+                      !customStartDate && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {customDate ? format(customDate, "dd/MM/yyyy") : "Data personalizada"}
+                    {customStartDate ? format(customStartDate, "dd/MM/yyyy") : "Data início"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={customDate}
-                    onSelect={handleDateSelect}
-                    defaultMonth={customDate}
+                    selected={customStartDate}
+                    onSelect={handleStartDateSelect}
+                    defaultMonth={customStartDate}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {/* Data Fim */}
+              <Popover open={isEndCalendarOpen} onOpenChange={setIsEndCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={selectedPeriod === "custom" ? "default" : "outline"}
+                    size="sm"
+                    className={cn(
+                      "text-xs md:text-sm justify-start text-left font-normal",
+                      !customEndDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEndDate ? format(customEndDate, "dd/MM/yyyy") : "Data fim"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customEndDate}
+                    onSelect={handleEndDateSelect}
+                    defaultMonth={customEndDate || customStartDate}
                     locale={ptBR}
                   />
                 </PopoverContent>
