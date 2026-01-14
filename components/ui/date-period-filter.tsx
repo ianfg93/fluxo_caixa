@@ -31,20 +31,49 @@ export function DatePeriodFilter({
   className
 }: DatePeriodFilterProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(currentFilter?.period || "all")
-  const [customDate, setCustomDate] = useState<Date | undefined>(
-    currentFilter?.startDate ? new Date(currentFilter.startDate) : undefined
-  )
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(() => {
+    if (currentFilter?.startDate) {
+      const [year, month, day] = currentFilter.startDate.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+    return undefined
+  })
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(() => {
+    if (currentFilter?.endDate) {
+      const [year, month, day] = currentFilter.endDate.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+    return undefined
+  })
+  const [isStartCalendarOpen, setIsStartCalendarOpen] = useState(false)
+  const [isEndCalendarOpen, setIsEndCalendarOpen] = useState(false)
+
+  const getBrazilDate = (): Date => {
+    // Obtém a data/hora atual no fuso horário de Brasília
+    const now = new Date()
+    const brazilDateStr = now.toLocaleString('en-US', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    })
+
+    // Parse do formato: MM/DD/YYYY, HH:mm:ss
+    const [datePart, timePart] = brazilDateStr.split(', ')
+    const [month, day, year] = datePart.split('/').map(Number)
+    const [hour, minute, second] = timePart.split(':').map(Number)
+
+    return new Date(year, month - 1, day, hour, minute, second)
+  }
 
   const formatDate = (date: Date): string => {
-    // Converte para o timezone de Brasília
-    const brazilDate = new Date(date.toLocaleString('en-US', {
-      timeZone: 'America/Sao_Paulo'
-    }))
-
-    const year = brazilDate.getFullYear()
-    const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
-    const day = String(brazilDate.getDate()).padStart(2, '0')
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
 
     return `${year}-${month}-${day}`
   }
@@ -52,7 +81,7 @@ export function DatePeriodFilter({
   const handlePeriodChange = (period: PeriodType) => {
     setSelectedPeriod(period)
 
-    const today = new Date()
+    const today = getBrazilDate()
     let startDate: string | undefined
     let endDate: string | undefined
 
@@ -84,9 +113,12 @@ export function DatePeriodFilter({
         break
 
       case "custom":
-        if (customDate) {
-          startDate = formatDate(customDate)
-          endDate = formatDate(customDate)
+        if (customStartDate && customEndDate) {
+          startDate = formatDate(customStartDate)
+          endDate = formatDate(customEndDate)
+        } else if (customStartDate) {
+          startDate = formatDate(customStartDate)
+          endDate = formatDate(customStartDate)
         }
         break
     }
@@ -94,13 +126,30 @@ export function DatePeriodFilter({
     onFilterChange({ period, startDate, endDate })
   }
 
-  const handleDateSelect = (date: Date | undefined) => {
+  const handleStartDateSelect = (date: Date | undefined) => {
     if (date) {
-      setCustomDate(date)
+      setCustomStartDate(date)
       setSelectedPeriod("custom")
-      setIsCalendarOpen(false)
+      setIsStartCalendarOpen(false)
 
       const startDate = formatDate(date)
+      const endDate = customEndDate ? formatDate(customEndDate) : formatDate(date)
+
+      onFilterChange({
+        period: "custom",
+        startDate,
+        endDate
+      })
+    }
+  }
+
+  const handleEndDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setCustomEndDate(date)
+      setSelectedPeriod("custom")
+      setIsEndCalendarOpen(false)
+
+      const startDate = customStartDate ? formatDate(customStartDate) : formatDate(date)
       const endDate = formatDate(date)
 
       onFilterChange({
@@ -148,27 +197,53 @@ export function DatePeriodFilter({
         </Button>
       )}
 
-      {/* Botão de Data Customizada com Calendário */}
-      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+      {/* Botões de Período Personalizado - Data Início */}
+      <Popover open={isStartCalendarOpen} onOpenChange={setIsStartCalendarOpen}>
         <PopoverTrigger asChild>
           <Button
             variant={selectedPeriod === "custom" ? "default" : "outline"}
             size="sm"
             className={cn(
               "text-xs md:text-sm justify-start text-left font-normal",
-              !customDate && "text-muted-foreground"
+              !customStartDate && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {customDate ? format(customDate, "dd/MM/yyyy") : "Data personalizada"}
+            {customStartDate ? format(customStartDate, "dd/MM/yyyy") : "Data início"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             mode="single"
-            selected={customDate}
-            onSelect={handleDateSelect}
-            defaultMonth={customDate}
+            selected={customStartDate}
+            onSelect={handleStartDateSelect}
+            defaultMonth={customStartDate}
+            locale={ptBR}
+          />
+        </PopoverContent>
+      </Popover>
+
+      {/* Data Fim */}
+      <Popover open={isEndCalendarOpen} onOpenChange={setIsEndCalendarOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant={selectedPeriod === "custom" ? "default" : "outline"}
+            size="sm"
+            className={cn(
+              "text-xs md:text-sm justify-start text-left font-normal",
+              !customEndDate && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {customEndDate ? format(customEndDate, "dd/MM/yyyy") : "Data fim"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={customEndDate}
+            onSelect={handleEndDateSelect}
+            defaultMonth={customEndDate || customStartDate}
             locale={ptBR}
           />
         </PopoverContent>

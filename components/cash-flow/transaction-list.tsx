@@ -26,13 +26,25 @@ interface TransactionListProps {
 // Helper function to get today's date in Brazil timezone
 function getTodayBrazil(): string {
   const now = new Date()
-  const brazilDate = new Date(now.toLocaleString('en-US', {
-    timeZone: 'America/Sao_Paulo'
-  }))
-  const year = brazilDate.getFullYear()
-  const month = String(brazilDate.getMonth() + 1).padStart(2, '0')
-  const day = String(brazilDate.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  const brazilDateStr = now.toLocaleString('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+
+  // Parse do formato: MM/DD/YYYY, HH:mm:ss
+  const [datePart] = brazilDateStr.split(', ')
+  const [month, day, year] = datePart.split('/').map(Number)
+
+  const paddedMonth = String(month).padStart(2, '0')
+  const paddedDay = String(day).padStart(2, '0')
+
+  return `${year}-${paddedMonth}-${paddedDay}`
 }
 
 export function TransactionList({ type }: TransactionListProps) {
@@ -79,38 +91,35 @@ export function TransactionList({ type }: TransactionListProps) {
   }
 
   useEffect(() => {
-    // Don't apply filters until initial filter is set
-    if (!periodFilter.startDate || !periodFilter.endDate) {
-      return
-    }
-
     let filtered = transactions
 
-    // Filtro de data
-    const [startYear, startMonth, startDay] = periodFilter.startDate.split('-').map(Number)
-    const [endYear, endMonth, endDay] = periodFilter.endDate.split('-').map(Number)
+    // Filtro de data (apenas se não for "all")
+    if (periodFilter.period !== "all" && periodFilter.startDate && periodFilter.endDate) {
+      const [startYear, startMonth, startDay] = periodFilter.startDate.split('-').map(Number)
+      const [endYear, endMonth, endDay] = periodFilter.endDate.split('-').map(Number)
 
-    const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
-    const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
+      const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
+      const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
 
-    filtered = filtered.filter(transaction => {
-      let transactionDate: Date
+      filtered = filtered.filter(transaction => {
+        let transactionDate: Date
 
-      if (transaction.date instanceof Date) {
-        transactionDate = new Date(
-          transaction.date.getFullYear(),
-          transaction.date.getMonth(),
-          transaction.date.getDate(),
-          0, 0, 0, 0
-        )
-      } else {
-        const dateStr = String(transaction.date).split('T')[0]
-        const [year, month, day] = dateStr.split('-').map(Number)
-        transactionDate = new Date(year, month - 1, day, 0, 0, 0, 0)
-      }
+        if (transaction.date instanceof Date) {
+          transactionDate = new Date(
+            transaction.date.getFullYear(),
+            transaction.date.getMonth(),
+            transaction.date.getDate(),
+            0, 0, 0, 0
+          )
+        } else {
+          const dateStr = String(transaction.date).split('T')[0]
+          const [year, month, day] = dateStr.split('-').map(Number)
+          transactionDate = new Date(year, month - 1, day, 0, 0, 0, 0)
+        }
 
-      return transactionDate >= startDate && transactionDate <= endDate
-    })
+        return transactionDate >= startDate && transactionDate <= endDate
+      })
+    }
 
     // Filtro de forma de pagamento
     if (paymentMethodFilter !== "all") {
