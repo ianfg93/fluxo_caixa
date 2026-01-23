@@ -525,12 +525,6 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
-              {error}
-            </div>
-          )}
-
           {/* Seção de Produtos */}
           <div className="space-y-4 p-4 border rounded-lg bg-slate-50">
             <div className="flex items-center gap-2 mb-3">
@@ -1132,6 +1126,11 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
                   className="bg-slate-100 cursor-not-allowed whitespace-pre-wrap text-xs"
                   rows={3}
                 />
+              </div>
+            )}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
+                {error}
               </div>
             )}
 
