@@ -32,12 +32,13 @@ export async function POST(
 
     try {
       // Adicionar item
-      await query(
-        `INSERT INTO open_order_items 
-         (order_id, product_id, product_name, product_price, quantity, subtotal) 
-         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)`,
+      const insertResult = await query(
+        `INSERT INTO open_order_items
+         (order_id, product_id, product_name, product_price, quantity, subtotal)
+         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6) RETURNING id`,
         [params.id, productId, productName, productPrice, quantity, subtotal]
       )
+      const newItemId = insertResult.rows[0].id
 
       // Recalcular totais
       const itemsResult = await query(
@@ -63,7 +64,7 @@ export async function POST(
 
       await query("COMMIT")
 
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ success: true, itemId: newItemId })
     } catch (error) {
       await query("ROLLBACK")
       throw error

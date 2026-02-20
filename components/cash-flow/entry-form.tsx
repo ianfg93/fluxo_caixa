@@ -13,7 +13,7 @@ import { ProductService, type Product } from "@/lib/products"
 import { OpenOrderService, type OpenOrder } from "@/lib/open-orders"
 import { CustomerService, type Customer } from "@/lib/customers"
 import { Textarea } from "../ui/textarea"
-import { Plus, X, Package, Calculator, Search, Save, DollarSign, Receipt, ArrowLeft, UserCircle } from "lucide-react"
+import { Plus, Minus, X, Package, Calculator, Search, Save, DollarSign, Receipt, ArrowLeft, UserCircle } from "lucide-react"
 import { getTodayBrazil } from "@/lib/utils"
 
 interface SelectedProduct {
@@ -23,6 +23,7 @@ interface SelectedProduct {
   quantity: number
   subtotal: number
   availableStock: number
+  orderItemId?: string
 }
 
 interface PaymentSplitWithId extends PaymentSplit {
@@ -104,6 +105,7 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
           quantity: item.quantity,
           subtotal: item.subtotal,
           availableStock: 0,
+          orderItemId: item.id,
         }))
       )
       setExtraAmount(selectedOrder.extraAmount.toString())
@@ -210,7 +212,7 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
     }
 
     const remaining = getRemainingAmount()
-    if (amount > remaining) {
+    if (Math.round(amount * 100) > Math.round(remaining * 100)) {
       setError(`O valor não pode ser maior que o restante: ${formatCurrency(remaining)}`)
       return
     }
@@ -261,14 +263,40 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
       return
     }
 
-    if (selectedProducts.some((p) => p.productId === selectedProductId)) {
-      setError("Este produto já foi adicionado")
-      return
-    }
-
     const product = products.find((p) => p.id === selectedProductId)
     if (!product) {
       setError("Produto não encontrado")
+      return
+    }
+
+    const existingProduct = selectedProducts.find((p) => p.productId === selectedProductId)
+
+    if (existingProduct) {
+      // Produto já está na lista — apenas incrementa a quantidade
+      const newQty = existingProduct.quantity + quantity
+      if (newQty > product.quantity) {
+        setError(`Estoque insuficiente. Disponível: ${product.quantity}`)
+        return
+      }
+      const newSubtotal = product.price * newQty
+
+      if (selectedOrder && existingProduct.orderItemId) {
+        const success = await OpenOrderService.updateItemQuantity(existingProduct.orderItemId, selectedOrder.id, newQty)
+        if (!success) {
+          setError("Erro ao atualizar quantidade na comanda")
+          return
+        }
+      }
+
+      setSelectedProducts(selectedProducts.map((p) =>
+        p.productId === selectedProductId
+          ? { ...p, quantity: newQty, subtotal: newSubtotal }
+          : p
+      ))
+      setSelectedProductId("")
+      setCurrentQuantity("1")
+      setProductSearchTerm("")
+      setError(null)
       return
     }
 
@@ -278,9 +306,10 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
     }
 
     const subtotal = product.price * quantity
+    let orderItemId: string | undefined
 
     if (selectedOrder) {
-      const success = await OpenOrderService.addItemToOrder({
+      const result = await OpenOrderService.addItemToOrder({
         orderId: selectedOrder.id,
         productId: product.id,
         productName: product.name,
@@ -288,10 +317,11 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         quantity,
       })
 
-      if (!success) {
+      if (!result.success) {
         setError("Erro ao adicionar produto à comanda")
         return
       }
+      orderItemId = result.itemId
     }
 
     setSelectedProducts([
@@ -303,6 +333,7 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
         quantity,
         subtotal,
         availableStock: product.quantity,
+        orderItemId,
       },
     ])
 
@@ -312,17 +343,47 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
     setError(null)
   }
 
+  const handleUpdateProductQuantity = async (productId: string, newQuantity: number) => {
+    const item = selectedProducts.find((p) => p.productId === productId)
+    if (!item) return
+
+    if (newQuantity <= 0) {
+      await handleRemoveProduct(productId)
+      return
+    }
+
+    const productData = products.find((p) => p.id === productId)
+    if (productData && newQuantity > productData.quantity) {
+      setError(`Estoque insuficiente. Disponível: ${productData.quantity}`)
+      return
+    }
+
+    const newSubtotal = item.price * newQuantity
+
+    if (selectedOrder && item.orderItemId) {
+      const success = await OpenOrderService.updateItemQuantity(item.orderItemId, selectedOrder.id, newQuantity)
+      if (!success) {
+        setError("Erro ao atualizar quantidade na comanda")
+        return
+      }
+    }
+
+    setSelectedProducts(selectedProducts.map((p) =>
+      p.productId === productId
+        ? { ...p, quantity: newQuantity, subtotal: newSubtotal }
+        : p
+    ))
+    setError(null)
+  }
+
   const handleRemoveProduct = async (productId: string) => {
     if (selectedOrder) {
       const item = selectedProducts.find((p) => p.productId === productId)
-      if (item) {
-        const orderItem = selectedOrder.items?.find((i) => i.productId === productId)
-        if (orderItem) {
-          const success = await OpenOrderService.removeItemFromOrder(orderItem.id, selectedOrder.id)
-          if (!success) {
-            setError("Erro ao remover produto da comanda")
-            return
-          }
+      if (item?.orderItemId) {
+        const success = await OpenOrderService.removeItemFromOrder(item.orderItemId, selectedOrder.id)
+        if (!success) {
+          setError("Erro ao remover produto da comanda")
+          return
         }
       }
     }
@@ -650,21 +711,42 @@ export function EntryForm({ onSuccess, onCancel, selectedOrder, onBackToOrders }
                       key={product.productId}
                       className="flex items-center justify-between p-3 bg-white border rounded-md"
                     >
-                      <div className="flex-1">
-                        <p className="font-medium">{product.productName}</p>
+                      <div className="flex-1 min-w-0 mr-2">
+                        <p className="font-medium truncate">{product.productName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {product.quantity} × {formatCurrency(product.price)} = <span className="font-semibold text-green-600">{formatCurrency(product.subtotal)}</span>
+                          {formatCurrency(product.price)} = <span className="font-semibold text-green-600">{formatCurrency(product.subtotal)}</span>
                         </p>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRemoveProduct(product.productId)}
-                        className="hover:bg-red-50 hover:text-red-600"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUpdateProductQuantity(product.productId, product.quantity - 1)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-7 text-center font-semibold text-sm">{product.quantity}</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUpdateProductQuantity(product.productId, product.quantity + 1)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveProduct(product.productId)}
+                          className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 ml-1"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

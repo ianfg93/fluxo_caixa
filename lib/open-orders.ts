@@ -115,7 +115,7 @@ export class OpenOrderService {
     }
   }
 
-  static async addItemToOrder(data: AddItemToOrderData): Promise<boolean> {
+  static async addItemToOrder(data: AddItemToOrderData): Promise<{ success: boolean; itemId?: string }> {
     try {
       const response = await ApiClient.post(`/api/open-orders/${data.orderId}/items`, {
         productId: data.productId,
@@ -124,9 +124,21 @@ export class OpenOrderService {
         quantity: data.quantity,
       })
 
-      return response.ok
+      if (!response.ok) return { success: false }
+      const result = await response.json()
+      return { success: true, itemId: result.itemId }
     } catch (error) {
       console.error("Erro ao adicionar item:", error)
+      return { success: false }
+    }
+  }
+
+  static async updateItemQuantity(itemId: string, orderId: string, quantity: number): Promise<boolean> {
+    try {
+      const response = await ApiClient.patch(`/api/open-orders/${orderId}/items/${itemId}`, { quantity })
+      return response.ok
+    } catch (error) {
+      console.error("Erro ao atualizar quantidade do item:", error)
       return false
     }
   }
